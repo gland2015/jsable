@@ -1,0 +1,42 @@
+{
+  "name": "jsable",
+  "description": "some awesome js function",
+  "license": "MIT",
+  "version": "0.0.1",
+  "private": false,
+  "author": {
+    "name": "gland",
+    "email": "1147940842@qq.com",
+    "url": "https://66app.app"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "function",
+    "utils",
+    "nodejs",
+    "help"
+  ],
+  "homepage": "https://66app.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gland2015/jsable.git"
+  },
+  "scripts": {
+    "style": "eslint *.js .internal/**/*.js",
+    "test": "jest",
+    "validate": "npm run style && npm run test"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.15.5",
+    "@babel/plugin-proposal-class-properties": "^7.14.5",
+    "@babel/plugin-proposal-decorators": "^7.15.4",
+    "@babel/plugin-transform-typescript": "^7.15.4",
+    "@babel/preset-env": "^7.15.4",
+    "@types/jest": "^27.0.1",
+    "babel-jest": "^27.1.0",
+    "eslint": "^7.32.0",
+    "jest": "^27.1.0"
+  }
+}

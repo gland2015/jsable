@@ -1,9 +1,9 @@
-module.exports = {
+export default {
   presets: [
     [
       "@babel/preset-env",
       {
-        modules: "umd",
+        modules: false,
         targets: {
           chrome: "92",
         },

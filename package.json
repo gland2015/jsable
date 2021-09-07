@@ -5,6 +5,8 @@
   "version": "0.0.5",
   "private": false,
   "type": "module",
+  "main": "index.js",
+  "module": "index.js",
   "author": {
     "name": "gland",
     "email": "1147940842@qq.com",

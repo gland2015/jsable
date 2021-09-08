@@ -1,21 +1,35 @@
-const list = [1, 2, 3, 4, 5];
-const list2 = ["a1", "b", "a1", "b", "c"];
-
+/**
+ * 对一维或二维数组进行排序，传入第二个参数dim = 1 | 2，默认为1
+ * 二维数组第一个元素为参考列，后续通过map可以更换
+ */
 class ArraySorter {
-  constructor(target) {
-    if (!target || !Array.isArray(target[0])) {
-      throw new Error("target is not 2 dim array");
-    }
-    let l = target[0].length;
-    target.forEach((v) => {
-      if (v.length !== l) {
-        throw new Error("target sub array length is not equal");
-      }
-    });
-
+  constructor(target, dim: 1 | 2 = 1) {
+    this.dim = dim;
     this.target = target;
-    this.data = target[0];
+    if (dim === 2) {
+      if (!target || !Array.isArray(target[0])) {
+        throw new Error("target is not 2 dim array");
+      }
+      let l = target[0].length;
+      target.forEach((v) => {
+        if (v.length !== l) {
+          throw new Error("target sub array length is not equal");
+        }
+      });
+      this.data = target[0];
+    } else {
+      this.data = target;
+      if (!Array.isArray(target)) {
+        throw new Error("target is not array");
+      }
+    }
   }
+
+  private dim: 1 | 2;
+  private indexes: Array<number>;
+  private target: Array<any>;
+  private data: Array<any>;
+  private groupMap: Map<any, any>;
 
   map(fn) {
     let mapper;
@@ -124,6 +138,7 @@ class ArraySorter {
         this.indexes[v] = indexes_[i];
       });
     };
+
     if (!this.indexes) {
       this.indexes = this.data.map((v, i) => i);
     }
@@ -137,16 +152,17 @@ class ArraySorter {
     }
 
     let info = [];
+    let target = this.dim === 2 ? this.target : [this.target];
     this.indexes.forEach((v, i) => {
       if (v === null || v === i) {
         return;
       }
-      let arr = [i, this.target.map((o) => o[v])];
+      let arr = [i, target.map((o) => o[v])];
       info.push(arr);
     });
 
     info.forEach((arr) => {
-      this.target.forEach((o, i) => {
+      target.forEach((o, i) => {
         o[arr[0]] = arr[1][i];
       });
     });
@@ -155,8 +171,4 @@ class ArraySorter {
   }
 }
 
-let sorter = new ArraySorter([]);
-
-sorter.group(function () {
-  // groupId
-});
+export { ArraySorter };

@@ -1,11 +1,11 @@
-import { ArraySorter } from ".";
+import { Sorter } from ".";
 
-describe("ArraySorter", () => {
+describe("Sorter", () => {
   let initData = getData();
   it("o.random & o.sort", () => {
     let data = getData();
 
-    let sorter = new ArraySorter(data, 2);
+    let sorter = new Sorter(data, 2);
     sorter.random();
     expect(isEqual(initData, data)).toEqual(false);
     sorter.sort((a, b) => a - b);
@@ -15,9 +15,9 @@ describe("ArraySorter", () => {
   it("o.reverse", () => {
     let data = getData();
     let data2 = getData();
-    let sorter = new ArraySorter(data, 2);
+    let sorter = new Sorter(data, 2);
     sorter.reverse();
-    let sorter2 = new ArraySorter(data2, 2);
+    let sorter2 = new Sorter(data2, 2);
     sorter2.sort((a, b) => b - a);
 
     expect(isEqual(data, data2)).toEqual(true);
@@ -25,7 +25,7 @@ describe("ArraySorter", () => {
 
   it("o.map & o.filter", () => {
     let data = getData();
-    let sorter = new ArraySorter(data, 2);
+    let sorter = new Sorter(data, 2);
     sorter
       .map((v, i, target) => {
         return { rowId: parseInt(target[1][i].match(/\d+$/)[0]), index: i };
@@ -54,9 +54,9 @@ describe("ArraySorter", () => {
     ).toEqual(true);
   });
 
-  it("o.group.sort", () => {
+  it("o.group.filter.map.sort", () => {
     let data = getData();
-    let sorter = new ArraySorter(data, 2);
+    let sorter = new Sorter(data, 2);
 
     sorter
       .group((v, i, target) => {
@@ -65,8 +65,6 @@ describe("ArraySorter", () => {
       .filter((vs, is, target) => true)
       .map((v, i, target) => i)
       .sort((a, b) => b - a);
-
-    console.log("data", data);
 
     expect(
       isEqual(data, [

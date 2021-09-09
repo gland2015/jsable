@@ -1,9 +1,18 @@
+type Target = Array<any>;
+type Fn = (value?: any, index?: number, target?: Target) => any;
+type Fn2 = (
+  value?: Array<any>,
+  index?: Array<number>,
+  target?: Target,
+  groupId?: any
+) => any;
+type Fn3 = (a: any, b: any) => 0 | 1 | -1 | number;
 /**
  * 对一维或二维数组进行排序，传入第二个参数dim = 1 | 2，默认为1
  * 二维数组第一个元素为参考列，后续通过map可以更换
  */
-class ArraySorter {
-  constructor(target, dim: 1 | 2 = 1) {
+export class Sorter {
+  constructor(target: Target, dim: 1 | 2 = 1) {
     this.dim = dim;
     this.target = target;
     if (dim === 2) {
@@ -49,7 +58,14 @@ class ArraySorter {
     });
   }
 
-  map(fn) {
+  restore() {
+    this.indexes = null;
+    this.groupMap = null;
+    this.data = this.dim === 2 ? this.target[0] : this.target;
+    return this;
+  }
+
+  map(fn: Fn) {
     let mapper;
     if (this.indexes) {
       mapper = (v, i) => {
@@ -67,7 +83,7 @@ class ArraySorter {
     return this;
   }
 
-  group(fn) {
+  group(fn: Fn) {
     this.groupMap = new Map();
 
     let indexes = this.indexes || [];
@@ -103,7 +119,7 @@ class ArraySorter {
     return this;
   }
 
-  filter(fn) {
+  filter(fn: Fn & Fn2) {
     if (this.groupMap) {
       let indexes = this.indexes || this.data.map((v, i) => null);
       for (const item of this.groupMap.values()) {
@@ -144,7 +160,7 @@ class ArraySorter {
     return this;
   }
 
-  sort(fn?) {
+  sort(fn?: Fn3) {
     if (!fn) {
       fn = (a, b) => a - b;
     }
@@ -236,5 +252,3 @@ class ArraySorter {
     return this.target;
   }
 }
-
-export { ArraySorter };

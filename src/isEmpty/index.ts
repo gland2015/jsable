@@ -5,7 +5,7 @@
   3、对象没有可枚举属性
   4、无穷大
 */
-export function isEmpty(data) {
+export function isEmpty(data: any) {
   if (!data) return true;
   if (Array.isArray(data)) {
     return data.length ? false : true;

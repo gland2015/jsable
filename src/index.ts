@@ -1,3 +1,3 @@
 export * from "./isEmpty";
-export * from "./ArraySorter";
+export * from "./Sorter";
 export * from "./replaceRegStr";

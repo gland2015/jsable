@@ -186,7 +186,6 @@ class ArraySorter {
   }
 
   reverse() {
-    // todo 组内调整顺序
     if (this.groupMap) {
       for (let item of this.groupMap.values()) {
         let index = item.index;

@@ -9,11 +9,10 @@ it.iteratDown(fn, initData);
 const fn = (item, listData, path) => {
   return data;
 };
-it.iteraUp(fn);
+it.iteratUp(fn);
 
 const fn = (item, { key }, path) => {};
 it.data("key")
   .someChild((item) => item.a, { includeSelf: false, includeSun: true })
   .collect(fn);
 
-  

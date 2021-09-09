@@ -28,7 +28,7 @@
   },
   "scripts": {
     "style": "eslint *.js .internal/**/*.js",
-    "test": "jest",
+    "test": "jest --config ./jest.config.js",
     "validate": "npm run style && npm run test",
     "build": "rollup -c ./rollup.config.js",
     "public": "npm run build && cd ./dist && npm publish"
@@ -37,6 +37,7 @@
     "@babel/core": "^7.15.5",
     "@babel/plugin-proposal-class-properties": "^7.14.5",
     "@babel/plugin-proposal-decorators": "^7.15.4",
+    "@babel/plugin-transform-modules-commonjs": "^7.15.4",
     "@babel/plugin-transform-typescript": "^7.15.4",
     "@babel/preset-env": "^7.15.4",
     "@babel/runtime": "^7.15.4",
@@ -44,7 +45,6 @@
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/jest": "^27.0.1",
-    "babel-jest": "^27.1.0",
     "del": "^6.0.0",
     "eslint": "^7.32.0",
     "fs-extra": "^10.0.0",

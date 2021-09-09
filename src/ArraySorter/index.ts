@@ -31,6 +31,24 @@ class ArraySorter {
   private data: Array<any>;
   private groupMap: Map<any, any>;
 
+  private applyIndexs() {
+    let target = this.dim === 2 ? this.target : [this.target];
+    let info = [];
+    this.indexes.forEach((v, i) => {
+      if (v === null || v === i) {
+        return;
+      }
+      let arr = [i, target.map((o) => o[v])];
+      info.push(arr);
+    });
+
+    info.forEach((arr) => {
+      target.forEach((o, i) => {
+        o[arr[0]] = arr[1][i];
+      });
+    });
+  }
+
   map(fn) {
     let mapper;
     if (this.indexes) {
@@ -87,7 +105,7 @@ class ArraySorter {
 
   filter(fn) {
     if (this.groupMap) {
-      let indexes = this.data.map((v, i) => null);
+      let indexes = this.indexes || this.data.map((v, i) => null);
       for (const item of this.groupMap.values()) {
         let isVaild = fn(
           item.index.map((v) => this.data[v]),
@@ -95,12 +113,11 @@ class ArraySorter {
           this.target,
           item.groupId
         );
-        if (isVaild) {
-          item.index.forEach((v) => {
-            indexes[v] = v;
-          });
-        } else {
+        if (!isVaild) {
           this.groupMap.delete(item.groupId);
+          item.index.forEach((v) => {
+            indexes[v] = null;
+          });
         }
       }
       this.indexes = indexes;
@@ -108,7 +125,7 @@ class ArraySorter {
       if (this.indexes) {
         this.indexes.forEach((v, i) => {
           if (v !== null) {
-            let isVaild = fn(this.data[v], v, this.target);
+            let isVaild = fn(this.data[i], i, this.target);
             if (!isVaild) {
               this.indexes[i] = null;
             }
@@ -127,7 +144,11 @@ class ArraySorter {
     return this;
   }
 
-  sort(fn) {
+  sort(fn?) {
+    if (!fn) {
+      fn = (a, b) => a - b;
+    }
+
     const sortIndexes = (indexes) => {
       let indexes_ = indexes.concat();
       indexes_.sort((a, b) => {
@@ -139,34 +160,80 @@ class ArraySorter {
       });
     };
 
-    if (!this.indexes) {
-      this.indexes = this.data.map((v, i) => i);
-    }
     if (this.groupMap) {
       for (const item of this.groupMap.values()) {
         sortIndexes(item.index);
       }
     } else {
-      let vaildIndexes = this.indexes.filter((v) => v !== null);
+      let vaildIndexes = [];
+      if (this.indexes) {
+        this.indexes.forEach((v, i) => {
+          if (v !== null) {
+            vaildIndexes.push(i);
+          }
+        });
+      } else {
+        this.indexes = this.data.map((v, i) => i);
+        vaildIndexes = this.indexes;
+      }
+
       sortIndexes(vaildIndexes);
     }
 
-    let info = [];
-    let target = this.dim === 2 ? this.target : [this.target];
-    this.indexes.forEach((v, i) => {
-      if (v === null || v === i) {
-        return;
+    this.applyIndexs();
+
+    return this.target;
+  }
+
+  reverse() {
+    // todo 组内调整顺序
+    if (this.groupMap) {
+      for (let item of this.groupMap.values()) {
+        let index = item.index;
+        index.sort();
+        let l = index.length;
+        index.forEach((v, i) => {
+          this.indexes[v] = index[l - l - i];
+        });
       }
-      let arr = [i, target.map((o) => o[v])];
-      info.push(arr);
-    });
+      this.applyIndexs();
+    } else {
+      if (this.indexes) {
+        let vaildIndexes = [];
+        this.indexes.forEach((v, i) => {
+          if (v !== null) {
+            vaildIndexes.push(i);
+          }
+        });
+        let l = vaildIndexes.length;
+        vaildIndexes.forEach((v, i) => {
+          this.indexes[v] = vaildIndexes[l - 1 - i];
+        });
+        this.applyIndexs();
+      } else {
+        let target = this.dim === 2 ? this.target : [this.target];
+        target.forEach((arr) => {
+          arr.reverse();
+        });
+      }
+    }
 
-    info.forEach((arr) => {
-      target.forEach((o, i) => {
-        o[arr[0]] = arr[1][i];
+    return this.target;
+  }
+
+  random() {
+    let _data = this.data;
+    if (this.indexes) {
+      this.data = this.indexes.map((v, i) => {
+        if (v === null) return null;
+        return Math.random();
       });
-    });
+    } else {
+      this.data = this.data.map(() => Math.random());
+    }
 
+    this.sort();
+    this.data = _data;
     return this.target;
   }
 }

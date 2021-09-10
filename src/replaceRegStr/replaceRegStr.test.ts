@@ -8,4 +8,18 @@ describe("replaceRegStr", () => {
 
     expect(reg.test(str)).toEqual(true);
   });
+
+  it("ascii", () => {
+    let str = new Array(128)
+      .fill(null)
+      .map(function (v, i) {
+        return String.fromCharCode(i + 1);
+      })
+      .join("");
+
+    let regStr = replaceRegStr(str);
+    let reg = new RegExp(regStr);
+
+    expect(reg.test(str)).toEqual(true);
+  });
 });

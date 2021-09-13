@@ -1,3 +1,16 @@
+// 抽象：循环嵌套类似自身结构，可能不止一个children
+
+// 应该需要有两个对象
+// 树结构有两种类型，通过children嵌套/通过id 和 parentId平级
+
+// static from
+
+it.add;
+it.append;
+it.push;
+it.unshift;
+it.shift;
+
 let it = new TreeIterator(tree, childKey, idKey);
 it.get(path);
 
@@ -36,6 +49,12 @@ it.map((item) => item);
 // 清除节点
 it.filter((item) => true);
 
+// 克隆树对象
+it.clone();
+
+// 分叉一个新的实例
+it.fork();
+
 // 更新数据
 it.restore(tree, childKey, idKey);
 
@@ -48,10 +67,3 @@ it.select(id).isChild;
 it.select(id).iterat();
 it.select(id).entireData().collect(); // ...
 it.select(id).getDepth();
-// static from
-
-it.add;
-it.append;
-it.push;
-it.unshift;
-it.shift;

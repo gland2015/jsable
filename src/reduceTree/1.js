@@ -4,6 +4,11 @@
 // 树结构有两种类型，通过children嵌套/通过id 和 parentId平级
 
 // static from
+/*
+  item tree
+  nest tree
+  flat tree
+*/
 
 it.add;
 it.append;

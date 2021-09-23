@@ -1,4 +1,4 @@
-class ItemAction {
+export class ItemAction {
   constructor(that, set) {
     this.that = that;
     this.set = set;
@@ -69,7 +69,6 @@ class ItemAction {
 
   reduceChild(rValueValue, itemToValue, options) {
     options = {
-      initValue: undefined,
       includeSelf: false,
       excludeSun: false,
     };
@@ -106,27 +105,84 @@ class ItemAction {
   }
 
   someParent(fn, options) {
+    options = {
+      includeSelf: false,
+      excludeAnt: false,
+    };
     data = {
       type: "down",
-      interFn: (item, pData) => {
+      interFn: (item, pData, pItem) => {
+        if (options.includeSelf) {
+          if (fn(item)) {
+            return true;
+          }
+        }
+
+        if (options.excludeAnt) {
+          return Boolean(fn(pItem));
+        } else {
+          return Boolean(pData);
+        }
+      },
+    };
+  }
+
+  everyParent(fn, options) {
+    options = {
+      includeSelf: false,
+      excludeAnt: false,
+    };
+    data = {
+      type: "down",
+      interFn: (item, pData, pItem) => {
+        if (!pItem) return true;
+
         if (options.includeSelf) {
           if (!fn(item)) {
             return false;
           }
         }
 
-        if (options.excludeSun) {
-          return childList.every((o) => {
-            return fn(o);
-          });
+        if (options.excludeAnt) {
+          return Boolean(fn(pItem));
         } else {
-          return childListData.every(Boolean);
+          return Boolean(pData);
         }
       },
     };
   }
 
-  everyParent(fn, options) {}
+  reduceParent(rValueValue, itemToValue, options) {
+    options = {
+      includeSelf: false,
+      excludeAnt: false,
+    };
 
-  reduceParent(fn, options) {}
+    data = {
+      type: "down",
+      interFn: (item, pData, pItem) => {
+        // todo isRoot
+        let value;
+        let hasValue = false;
+        if (options.includeSelf) {
+          value = itemToValue(item);
+          hasValue = true;
+        }
+
+        if (options.excludeAnt) {
+          let v = itemToValue(pItem);
+          if (hasValue) {
+            value = rValueValue(value, v);
+          } else {
+            hasValue = true;
+            value = v;
+          }
+        } else {
+          value = rValueValue(pData, value);
+        }
+
+        return value;
+      },
+    };
+  }
 }

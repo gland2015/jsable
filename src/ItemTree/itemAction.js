@@ -5,184 +5,253 @@ export class ItemAction {
   }
 
   someChild(fn, options) {
-    this.set(type, fn, options);
-    let data = {
-      type: "up",
-      interFn: null,
-    };
+    const self = options?.self;
+    const shallow = options?.shallow;
 
-    options = {
-      includeSelf: false,
-      excludeSun: false,
-    };
-
-    data = {
+    const data = {
       type: "up",
-      needData: {
-        listData: true,
-        childList: false,
-      },
-      interFn: (item, childListData, childList) => {
-        if (options.includeSelf) {
-          if (fn(item)) {
-            return true;
+      fnInfo: {
+        getValue: (o) => o.val,
+        fn: (item, listData, childList) => {
+          let val;
+          let itemVal;
+          let hasImV;
+
+          if (shallow) {
+            val = listData.some((o, i) => {
+              if (o.hasImV) {
+                return o.itemVal;
+              }
+              return fn(childList[i]);
+            });
+          } else {
+            val = listData.some((o) => {
+              return o.val;
+            });
           }
-        }
 
-        if (options.excludeSun) {
-          return childList.some((o) => {
-            return fn(o);
-          });
-        } else {
-          return childListData.some(Boolean);
-        }
+          if (!val && self) {
+            itemVal = fn(item);
+            hasImV = true;
+            val = itemVal;
+          }
+          return { val, itemVal, hasImV };
+        },
       },
     };
+    this.set(data);
     return this.that;
   }
 
   everyChild(fn, options) {
-    options = {
-      includeSelf: false,
-      excludeSun: false,
-    };
+    const self = options?.self;
+    const shallow = options?.shallow;
 
-    data = {
+    const data = {
       type: "up",
-      interFn: (item, childListData, childList) => {
-        if (options.includeSelf) {
-          if (!fn(item)) {
-            return false;
-          }
-        }
+      fnInfo: {
+        getValue: (o) => Boolean(o.val),
+        fn: (item, listData, childList) => {
+          let val;
+          let itemVal;
+          let hasImV;
 
-        if (options.excludeSun) {
-          return childList.every((o) => {
-            return fn(o);
-          });
-        } else {
-          return childListData.every(Boolean);
-        }
+          if (self) {
+            itemVal = fn(item);
+            hasImV = true;
+          }
+
+          if (!hasImV || itemVal) {
+            if (shallow) {
+              val = listData.every((o, i) => {
+                if (o.hasImV) {
+                  return o.itemVal;
+                }
+                return fn(childList[i]);
+              });
+            } else {
+              val = listData.every((o) => {
+                return o.val;
+              });
+            }
+          }
+
+          return { val, itemVal, hasImV };
+        },
       },
     };
+    this.set(data);
+    return this.that;
   }
 
   reduceChild(rValueValue, itemToValue, options) {
-    options = {
-      includeSelf: false,
-      excludeSun: false,
-    };
+    const self = options?.self;
+    const shallow = options?.shallow;
 
-    data = {
+    const data = {
       type: "up",
-      interFn: (item, childListData, childList) => {
-        let value;
-        let hasValue = false;
-        if (options.includeSelf) {
-          value = itemToValue(item);
-          hasValue = true;
-        }
+      fnInfo: {
+        getValue: (o) => o.val,
+        fn: (item, listData, childList) => {
+          let val;
+          let itemVal;
+          let hasImV;
 
-        if (options.excludeSun) {
-          childList.forEach((o) => {
-            let v = itemToValue(o);
-            if (hasValue) {
-              value = rValueValue(value, v);
+          if (self) {
+            itemVal = itemToValue(item);
+            hasImV = true;
+            val = itemVal;
+          }
+
+          listData.forEach((o, i) => {
+            let oVal;
+            if (shallow) {
+              oVal = o.hasImV ? o.itemVal : itemToValue(childList[i]);
             } else {
-              hasValue = true;
-              value = v;
+              if (self) {
+                oVal = o.val;
+              } else {
+                oVal = o.hasImV ? o.itemVal : itemToValue(childList[i]);
+                oVal = rValueValue(oVal, o.val);
+              }
+            }
+            if (i === 0) {
+              if (hasImV) {
+                val = rValueValue(itemVal, oVal);
+              } else {
+                val = oVal;
+              }
+            } else {
+              val = rValueValue(val, oVal);
             }
           });
-        } else {
-          childListData.forEach((v) => {
-            value = rValueValue(v);
-          });
-        }
 
-        return value;
+          return { val, itemVal, hasImV };
+        },
       },
     };
+
+    this.set(data);
+    return this.that;
   }
 
   someParent(fn, options) {
-    options = {
-      includeSelf: false,
-      excludeAnt: false,
-    };
-    data = {
-      type: "down",
-      interFn: (item, pData, pItem) => {
-        if (options.includeSelf) {
-          if (fn(item)) {
-            return true;
-          }
-        }
+    const self = options?.self;
+    const shallow = options?.shallow;
 
-        if (options.excludeAnt) {
-          return Boolean(fn(pItem));
-        } else {
-          return Boolean(pData);
-        }
+    const data = {
+      type: "down",
+      fnInfo: {
+        getValue: (o) => Boolean(o.val),
+        fn: (item, pData, pItem) => {
+          let val = false;
+          let itemVal;
+          let hasImV;
+
+          if (self) {
+            itemVal = fn(item);
+            hasImV = true;
+          }
+
+          if (itemVal) {
+            val = true;
+          } else {
+            if (shallow) {
+              if (pData) {
+                val = pData.hasImV ? pData.itemVal : fn(pItem);
+              } else {
+                val = false;
+              }
+            } else {
+              val = pData ? pData.val : false;
+            }
+          }
+
+          return { val, itemVal, hasImV };
+        },
       },
     };
+
+    this.set(data);
+    return this.that;
   }
 
   everyParent(fn, options) {
-    options = {
-      includeSelf: false,
-      excludeAnt: false,
-    };
-    data = {
+    const self = options?.self;
+    const shallow = options?.shallow;
+
+    const data = {
       type: "down",
-      interFn: (item, pData, pItem) => {
-        if (!pItem) return true;
+      fnInfo: {
+        getValue: (o) => Boolean(o.val),
+        fn: (item, pData, pItem) => {
+          let val;
+          let itemVal;
+          let hasImV;
 
-        if (options.includeSelf) {
-          if (!fn(item)) {
-            return false;
+          if (self) {
+            itemVal = fn(item);
+            hasImV = true;
           }
-        }
 
-        if (options.excludeAnt) {
-          return Boolean(fn(pItem));
-        } else {
-          return Boolean(pData);
-        }
+          if (!self || itemVal) {
+            if (shallow) {
+              if (pData) {
+                val = pData.hasImV ? pData.itemVal : fn(pItem);
+              } else {
+                val = true;
+              }
+            } else {
+              val = pData ? pData.val : true;
+            }
+          }
+
+          return { val, itemVal, hasImV };
+        },
       },
     };
+
+    this.set(data);
+    return this.that;
   }
 
   reduceParent(rValueValue, itemToValue, options) {
-    options = {
-      includeSelf: false,
-      excludeAnt: false,
-    };
+    const self = options?.self;
+    const shallow = options?.shallow;
 
-    data = {
+    const data = {
       type: "down",
-      interFn: (item, pData, pItem) => {
-        // todo isRoot
-        let value;
-        let hasValue = false;
-        if (options.includeSelf) {
-          value = itemToValue(item);
-          hasValue = true;
-        }
+      fnInfo: {
+        getValue: (o) => o.val,
+        fn: (item, pData, pItem) => {
+          let val;
+          let itemVal;
+          let hasImV;
 
-        if (options.excludeAnt) {
-          let v = itemToValue(pItem);
-          if (hasValue) {
-            value = rValueValue(value, v);
-          } else {
-            hasValue = true;
-            value = v;
+          if (self) {
+            itemVal = itemToValue(item);
+            hasImV = true;
           }
-        } else {
-          value = rValueValue(pData, value);
-        }
 
-        return value;
+          if (pData) {
+            let pItVal = pData.hasImV ? pData.itemVal : itemToValue(pItem);
+            if (shallow) {
+              val = self ? rValueValue(itemVal, pItVal) : pItVal;
+            } else {
+              val = self
+                ? rValueValue(itemVal, pData.val)
+                : rValueValue(pItVal, pData.val);
+            }
+          } else {
+            val = itemVal;
+          }
+
+          return { val, itemVal, hasImV };
+        },
       },
     };
+
+    this.set(data);
+    return this.that;
   }
 }

@@ -1,4 +1,5 @@
 import { ItemAction } from "./itemAction";
+import { EntireAction } from "./entireAction";
 import { TreeData } from "./treeData";
 
 class ItemTree {
@@ -137,7 +138,7 @@ class ItemTree {
       }
     };
 
-    return new ItemAction(that, set);
+    return new EntireAction(that, set);
   }
 
   collect(colItemFn) {

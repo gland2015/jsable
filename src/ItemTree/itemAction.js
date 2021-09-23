@@ -11,7 +11,7 @@ export class ItemAction {
     const data = {
       type: "up",
       fnInfo: {
-        getValue: (o) => o.val,
+        getValue: (o) => Boolean(o.val),
         fn: (item, listData, childList) => {
           let val;
           let itemVal;

@@ -2,7 +2,7 @@ import { ItemAction } from "./itemAction";
 import { EntireAction } from "./entireAction";
 import { TreeData } from "./treeData";
 
-class ItemTree {
+export class ItemTree {
   constructor(tree, childKey, idKey) {
     this.tree = tree;
     this.childKey = childKey;

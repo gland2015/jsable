@@ -16,7 +16,6 @@ export class EntireAction {
         },
       },
     };
-
     this.set(data);
     return this.that;
   }

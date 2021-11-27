@@ -30,37 +30,30 @@ export class NestedTree<T> {
   /**
    * 从item tree创建nested tree
    * options:
-   *  id - 创建后从元素中获取id - 默认'id'
-   *  lft - 创建后从元素设置，获取lft值 - 默认'lft'
-   *  rft - 创建后从元素设置，获取rft值 - 默认'rft'
-   *  depth - 创建后从元素设置，获取depth值 - 默认'depth'
+   *  startDepth - 构建时起始深度 - 默认1
    *  startLeft - 构建时左节点的起始值 - 默认1
    *  children - 创建时获取children - 默认'children'
    *  setItem - 创建时生成item
    *
    * 算法:
-   * buildNode: - 构建一个树节点
+   * buildNode: - 构建一个树节点 - 返回这个节点的right值和这个节点
    *  1、接收一个节点初始数据，和起始left节点值
    *  2、节点right值为left + 1
    *  3、若有子，则依次构建子，每个子的left为上一个子的right + 1
    *  4、该节点right值为最后一个子的right + 1 或 其left + 1(若无子)
    *  5、生成节点并追加到列表
-   *  6、返回该节点的right值
    * buildNode依次构建根节点，每个节点的left为上一个的right + 1
    */
   static fromItem<T>(
     itemTree: Array<T>,
-    options?: {
-      id?: string & ((o: T) => number | string);
-      lft?: KeyOp<T>;
-      rft?: KeyOp<T>;
-      depth?: KeyOp<T>;
+    options?: TreeOp<T> & {
+      startDepth?: number;
       startLeft?: number;
       children?: string & ((o: T) => Array<T>);
-      setItem: (o: T, lft: number, rft: number, depth: number) => any;
+      setItem?: (o: T, lft: number, rft: number, depth: number, children?: Array<T>) => any;
     }
   ): NestedTree<T> {
-    const { id = "id", lft = "lft", rft = "rft", depth = "depth", startLeft = 1, children = "children", setItem } = options || {};
+    const { startDepth = 1, startLeft = 1, children = "children", setItem, ...treeOpt } = options || {};
     const getChild = typeof children === "function" ? children : (o) => o[children];
     const getItem = setItem || ((o, lft, rft, depth) => ({ ...o, lft, rft, depth }));
 
@@ -68,55 +61,95 @@ export class NestedTree<T> {
 
     let left = startLeft;
     itemTree.forEach(function (o) {
-      let right = buildNode(o, left, 1);
+      let right = buildNode(o, left, startDepth).right;
       left = right + 1;
     });
 
     function buildNode(o, left, depth) {
       let right = left + 1;
 
+      let cNodes = [];
       const cList = getChild(o);
       if (cList && cList.length) {
         const cDepth = depth + 1;
-        cList.forEach(function (co) {
-          right = buildNode(co, right, cDepth) + 1;
+        cNodes = cList.map(function (co) {
+          const data = buildNode(co, right, cDepth);
+          right = data.right + 1;
+
+          return data.item;
         });
       }
 
-      list.push(getItem(o, left, right, depth));
+      const item = getItem(o, left, right, depth, cNodes);
+      list.push(item);
 
-      return right;
+      return { right, item };
     }
 
-    return new NestedTree(list, {
-      id,
-      lft,
-      rft,
-      depth,
-    });
+    return new NestedTree(list, treeOpt);
   }
 
   /**
    * flat tree创建nested tree
    * options:
-   *  id - 创建后从元素中获取id - 默认'id'
-   *  lft - 创建后从元素设置，获取lft值 - 默认'lft'
-   *  rft - 创建后从元素设置，获取rft值 - 默认'rft'
-   *  depth - 创建后从元素设置，获取depth值 - 默认'depth'
    *  parentId - 创建时获取parentId - 默认'parentId'
+   *  startLeft - 起始左节点 - 默认1
    *  setItem - 创建时生成item
    */
   static fromFlat<T>(
     flatTree: Array<T>,
-    options?: {
-      id?: string & ((o: T) => number | string);
-      lft?: KeyOp<T>;
-      rft?: KeyOp<T>;
-      depth?: KeyOp<T>;
-      parentId?: KeyOp<T>;
-      setItem: (o: T, lft: number, rft: number, depth: number) => any;
+    options?: TreeOp<T> & {
+      startDepth?: number;
+      startLeft?: number;
+      flatId?: string & ((o: T) => number | string);
+      parentId?: string | ((o: T) => number | string);
+      isRoot?: (pid: string | number, o?: T) => boolean;
+      setItem: (o: T, lft: number, rft: number, depth: number, children?: Array<T>) => any;
     }
-  ) {}
+  ): NestedTree<T> {
+    const { flatId = "id", parentId = "parentId", isRoot, setItem, ...itemOpt } = options || {};
+
+    const getId = typeof flatId === "function" ? flatId : (o) => o[flatId];
+    const getPid = typeof parentId === "function" ? parentId : (o) => o[parentId];
+    const getIsRoot = typeof isRoot === "function" ? isRoot : (pid, o) => pid !== null && pid !== undefined;
+    const getItem = setItem || ((o, lft, rft, depth) => ({ ...o, lft, rft, depth }));
+
+    const list = [];
+    const obj = {};
+    flatTree.forEach(function (o) {
+      const id = getId(o);
+      const pid = getPid(o);
+
+      let info = obj[id];
+      if (info) {
+        info.doc = o;
+      } else {
+        info = obj[id] = {
+          doc: o,
+          children: [],
+        };
+      }
+      if (getIsRoot(pid, o)) {
+        list.push(info);
+      } else {
+        let pInfo = obj[pid];
+        if (!pInfo) {
+          pInfo = obj[pid] = {
+            doc: null,
+            children: [],
+          };
+        }
+        pInfo.children.push(info);
+      }
+    });
+
+    const setItemFlat = function (o, lft, rft, depth, children) {
+      return getItem(o.doc, lft, rft, depth, children);
+    };
+    itemOpt["setItem"] = setItemFlat;
+
+    return NestedTree.fromItem(list, itemOpt);
+  }
 
   private initOptions(options?: TreeOp<T>) {
     const id = options?.id || "id";

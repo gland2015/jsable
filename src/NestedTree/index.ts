@@ -1,10 +1,12 @@
-export type KeyOp<T> = string & {
-  get: (o: T) => number;
-  set: (o: T, n: number) => any;
-};
+export type KeyOp<T> =
+  | string
+  | {
+      get: (o: T) => number;
+      set: (o: T, n: number) => any;
+    };
 
 export type TreeOp<T> = {
-  id?: string & ((o: T) => number | string);
+  id?: string | ((o: T) => number | string);
   lft?: KeyOp<T>;
   rft?: KeyOp<T>;
   depth?: KeyOp<T>;
@@ -32,8 +34,19 @@ export class NestedTree<T> {
    *  lft - 创建后从元素设置，获取lft值 - 默认'lft'
    *  rft - 创建后从元素设置，获取rft值 - 默认'rft'
    *  depth - 创建后从元素设置，获取depth值 - 默认'depth'
+   *  startLeft - 构建时左节点的起始值 - 默认1
    *  children - 创建时获取children - 默认'children'
    *  setItem - 创建时生成item
+   *
+   * 算法:
+   * buildNode: - 构建一个树节点
+   *  1、接收一个节点初始数据，和起始left节点值
+   *  2、节点right值为left + 1
+   *  3、若有子，则依次构建子，每个子的left为上一个子的right + 1
+   *  4、该节点right值为最后一个子的right + 1 或 其left + 1(若无子)
+   *  5、生成节点并追加到列表
+   *  6、返回该节点的right值
+   * buildNode依次构建根节点，每个节点的left为上一个的right + 1
    */
   static fromItem<T>(
     itemTree: Array<T>,
@@ -42,11 +55,45 @@ export class NestedTree<T> {
       lft?: KeyOp<T>;
       rft?: KeyOp<T>;
       depth?: KeyOp<T>;
+      startLeft?: number;
       children?: string & ((o: T) => Array<T>);
       setItem: (o: T, lft: number, rft: number, depth: number) => any;
     }
   ): NestedTree<T> {
-    return null;
+    const { id = "id", lft = "lft", rft = "rft", depth = "depth", startLeft = 1, children = "children", setItem } = options || {};
+    const getChild = typeof children === "function" ? children : (o) => o[children];
+    const getItem = setItem || ((o, lft, rft, depth) => ({ ...o, lft, rft, depth }));
+
+    const list = [];
+
+    let left = startLeft;
+    itemTree.forEach(function (o) {
+      let right = buildNode(o, left, 1);
+      left = right + 1;
+    });
+
+    function buildNode(o, left, depth) {
+      let right = left + 1;
+
+      const cList = getChild(o);
+      if (cList && cList.length) {
+        const cDepth = depth + 1;
+        cList.forEach(function (co) {
+          right = buildNode(co, right, cDepth) + 1;
+        });
+      }
+
+      list.push(getItem(o, left, right, depth));
+
+      return right;
+    }
+
+    return new NestedTree(list, {
+      id,
+      lft,
+      rft,
+      depth,
+    });
   }
 
   /**

@@ -24,6 +24,7 @@ export class NestedTree<T> {
       const id = this.getId(o);
       this.map[id] = o;
     });
+    this.list = list;
   }
 
   // todo null 或 false等代表不设置
@@ -36,7 +37,7 @@ export class NestedTree<T> {
    *  setItem - 创建时生成item
    *
    * 算法:
-   * buildNode: - 构建一个树节点 - 返回这个节点的right值和这个节点
+   * buildNode: - 构建一个树节点 - 返回这个节点的right值
    *  1、接收一个节点初始数据，和起始left节点值
    *  2、节点right值为left + 1
    *  3、若有子，则依次构建子，每个子的left为上一个子的right + 1
@@ -65,25 +66,23 @@ export class NestedTree<T> {
       left = right + 1;
     });
 
-    function buildNode(o, left, depth) {
+    function buildNode(o, left, depth, nodes?) {
       let right = left + 1;
 
-      let cNodes = [];
+      const cNodes = [];
       const cList = getChild(o);
       if (cList && cList.length) {
         const cDepth = depth + 1;
-        cNodes = cList.map(function (co) {
-          const data = buildNode(co, right, cDepth);
-          right = data.right + 1;
-
-          return data.item;
+        cList.forEach(function (co) {
+          right = buildNode(co, right, cDepth, cNodes) + 1;
         });
       }
 
       const item = getItem(o, left, right, depth, cNodes);
       list.push(item);
+      nodes && nodes.push(item);
 
-      return { right, item };
+      return right;
     }
 
     return new NestedTree(list, treeOpt);
@@ -190,13 +189,76 @@ export class NestedTree<T> {
   }
 
   private map: { [key: string]: T };
+  private list: Array<T>;
+  private nodeData: T;
+
   private getId: (o: T) => string | number;
   private getLft: (o: T) => number;
   private setLft: (o: T, n: number) => any;
   private getRft: (o: T) => number;
   private setRft: (o: T, n: number) => any;
 
+  public values() {
+    // todo
+  }
+
   public get(id) {
     return this.map[id];
   }
+
+  public node(id) {}
+
+  public forEach(fn) {
+    this.list.forEach(fn, this);
+  }
+
+  public push(item: T | NestedTree<T>) {
+
+  }
 }
+
+class NestedBase<T> {
+  constructor() {}
+
+  private get: (id) => any;
+  private list: Array<any>;
+  private getId: (o: T) => string | number;
+  private getLft: (o: T) => number;
+  private setLft: (o: T, n: number) => any;
+  private getRft: (o: T) => number;
+  private setRft: (o: T, n: number) => any;
+  private getDpt: (o: T) => number;
+  private setDpt: (o: T, n: number) => any;
+
+  protected push(item, id) {
+    let lft, rft, dpt;
+    if (id !== null && id !== undefined) {
+      let o = this.get(id);
+      if (!o) {
+        throw new Error("Node for id:" + id + "is not exist");
+      }
+      lft = this.getLft(o);
+      rft = this.getRft(o);
+      dpt = this.getDpt(o);
+    } else {
+    }
+  }
+
+  unshift;
+}
+
+class NestedNode {
+  constructor() {}
+
+  value() {}
+
+  push() {}
+  unshift() {}
+
+  link() {}
+  linkBefore() {}
+}
+
+let t = new NestedTree([]);
+
+t.get;

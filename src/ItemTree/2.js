@@ -125,6 +125,14 @@ export class ItemTree {
     };
     return new ItemAction(that, set);
   }
+  unItemData(key) {
+    if (key) {
+      delete this.itemKeys[key];
+    } else {
+      this.itemKeys = {};
+      this.itemValue = null;
+    }
+  }
 
   entireValue;
   entireKeys = {};
@@ -139,6 +147,14 @@ export class ItemTree {
     };
 
     return new EntireAction(that, set);
+  }
+  unEntireData(key) {
+    if (key) {
+      delete this.entireKeys[key];
+    } else {
+      this.entireKeys = {};
+      this.entireValue = null;
+    }
   }
 
   collect(colItemFn) {
@@ -355,5 +371,23 @@ export class ItemTree {
     }
 
     return entireData;
+  }
+
+  // todo
+  setIndexes() {}
+  find() {}
+  findOne() {}
+  map() {}
+  filter() {}
+  clone() {}
+  restore() {}
+
+  get() {}
+  set() {}
+
+  select(id) {
+    isParentOf;
+    isChildOf;
+    getDepth;
   }
 }

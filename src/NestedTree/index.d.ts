@@ -15,8 +15,8 @@ type TreeOptions<T> = {
 type BuildItemOptions<T> = {
   startDepth?: number;
   startLeft?: number;
+  setItem?: (o: T, lft: number, rgt: number, depth: number) => any;
   children?: string & ((o: T) => Array<T>);
-  setItem?: (o: T, lft: number, rgt: number, depth: number, children?: Array<T>) => any;
 };
 
 type BuildFlatOptions<T> = {
@@ -25,5 +25,6 @@ type BuildFlatOptions<T> = {
   flatId?: string & ((o: T) => number | string);
   parentId?: string | ((o: T) => number | string);
   isRoot?: (pid: string | number, o?: T) => boolean;
-  setItem: (o: T, lft: number, rgt: number, depth: number, children?: Array<T>) => any;
+  setItem?: (o: T, lft: number, rgt: number, depth: number) => any;
 };
+

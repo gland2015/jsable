@@ -1,28 +1,20 @@
 import "./index.d";
 
+type NewNode<T, S> = S | Array<S> | NestedTree<T, S>;
+
 /**
  * 嵌套模型树
  *
  */
-export class NestedTree<T> {
+export class NestedTree<T, S> {
   constructor(list: Array<T>, options?: TreeOptions<T>) {
-    this.core = new NestedCore<T>(list, options);
+    this.core = new NestedCore<T, S>(list, options);
   }
 
-  static buildListByItem<T>(
-    itemTree: Array<T>,
-    options?: BuildItemOptions<T>
-  ): Array<T> {
-    const {
-      startDepth = 1,
-      startLeft = 1,
-      children = "children",
-      setItem,
-    } = options || {};
-    const getChild =
-      typeof children === "function" ? children : (o) => o[children];
-    const getItem =
-      setItem || ((o, lft, rgt, depth) => ({ ...o, lft, rgt, depth }));
+  static buildListByItem<T, S>(itemTree: Array<S>, options?: BuildItemOptions<S>): Array<T> {
+    const { startDepth = 1, startLeft = 1, children = "children", setItem } = options || {};
+    const getChild = typeof children === "function" ? children : (o) => o[children];
+    const getItem = setItem || ((o, lft, rgt, depth) => ({ ...o, lft, rgt, depth }));
 
     const list = [];
 
@@ -32,21 +24,19 @@ export class NestedTree<T> {
       left = right + 1;
     });
 
-    function buildNode(o, left, depth, nodes?) {
+    function buildNode(o, left, depth) {
       let right = left + 1;
 
-      const cNodes = [];
       const cList = getChild(o);
       if (cList && cList.length) {
         const cDepth = depth + 1;
         cList.forEach(function (co) {
-          right = buildNode(co, right, cDepth, cNodes) + 1;
+          right = buildNode(co, right, cDepth) + 1;
         });
       }
 
-      const item = getItem(o, left, right, depth, cNodes);
+      const item = getItem(o, left, right, depth);
       list.push(item);
-      nodes && nodes.push(item);
 
       return right;
     }
@@ -54,27 +44,13 @@ export class NestedTree<T> {
     return list;
   }
 
-  static buildListByFlat<T>(
-    flatTree: Array<T>,
-    options?: BuildFlatOptions<T>
-  ): Array<T> {
-    const {
-      flatId = "id",
-      parentId = "parentId",
-      isRoot,
-      setItem,
-      ...itemOpt
-    } = options || {};
+  static buildListByFlat<T, S>(flatTree: Array<S>, options?: BuildFlatOptions<S>): Array<T> {
+    const { flatId = "id", parentId = "parentId", isRoot, setItem, ...itemOpt } = options || {};
 
     const getId = typeof flatId === "function" ? flatId : (o) => o[flatId];
-    const getPid =
-      typeof parentId === "function" ? parentId : (o) => o[parentId];
-    const getIsRoot =
-      typeof isRoot === "function"
-        ? isRoot
-        : (pid, o) => pid !== null && pid !== undefined;
-    const getItem =
-      setItem || ((o, lft, rgt, depth) => ({ ...o, lft, rgt, depth }));
+    const getPid = typeof parentId === "function" ? parentId : (o) => o[parentId];
+    const getIsRoot = typeof isRoot === "function" ? isRoot : (pid, o) => pid !== null && pid !== undefined;
+    const getItem = setItem || ((o, lft, rgt, depth) => ({ ...o, lft, rgt, depth }));
 
     const itemList = [];
     const obj = {};
@@ -105,12 +81,12 @@ export class NestedTree<T> {
       }
     });
 
-    const setItemFlat = function (o, lft, rgt, depth, children) {
-      return getItem(o.doc, lft, rgt, depth, children);
+    const setItemFlat = function (o, lft, rgt, depth) {
+      return getItem(o.doc, lft, rgt, depth);
     };
     itemOpt["setItem"] = setItemFlat;
 
-    const list = NestedTree.buildListByItem(itemList, itemOpt);
+    const list = NestedTree.buildListByItem<T, S>(itemList, itemOpt);
 
     return list;
   }
@@ -133,12 +109,11 @@ export class NestedTree<T> {
    *  5、生成节点并追加到列表
    * buildNode依次构建根节点，每个节点的left为上一个的right + 1
    */
-  static fromItem<T>(
-    itemTree: Array<T>,
-    options?: TreeOptions<T> & BuildItemOptions<T>
-  ): NestedTree<T> {
-    const list = NestedTree.buildListByItem<T>(itemTree, options);
-    return new NestedTree(list, options);
+  static fromItem<T, S>(itemTree: Array<S>, options?: TreeOptions<T> & BuildItemOptions<S>): NestedTree<T, S> {
+    const list = NestedTree.buildListByItem<T, S>(itemTree, options);
+    const tree = new NestedTree(list, options);
+    tree.core.from = "item";
+    return tree;
   }
 
   /**
@@ -152,15 +127,14 @@ export class NestedTree<T> {
    *  setItem - 创建时生成item
    *  ...TreeOptions
    */
-  static fromFlat<T>(
-    flatTree: Array<T>,
-    options?: TreeOptions<T> & BuildFlatOptions<T>
-  ): NestedTree<T> {
-    const list = NestedTree.buildListByFlat(flatTree, options);
-    return new NestedTree(list, options);
+  static fromFlat<T, S>(flatTree: Array<S>, options?: TreeOptions<T> & BuildFlatOptions<S>): NestedTree<T, S> {
+    const list = NestedTree.buildListByFlat<T, S>(flatTree, options);
+    const tree = new NestedTree(list, options);
+    tree.core.from = "flat";
+    return tree;
   }
 
-  private core: NestedCore<T>;
+  private core: NestedCore<T, S>;
 
   public values() {
     return this.core.list;
@@ -179,6 +153,32 @@ export class NestedTree<T> {
     return max;
   }
 
+  private getMinLft(): number | null {
+    let min = null;
+    this.core.forEach((o) => {
+      let lft = this.core.getLft(o);
+      if (min === null) {
+        min = lft;
+      } else if (min > lft) {
+        min = lft;
+      }
+    });
+    return min;
+  }
+
+  private getMinDpt(): number | null {
+    let min = null;
+    this.core.forEach((o) => {
+      let dpt = this.core.getDpt(o);
+      if (min === null) {
+        min = dpt;
+      } else if (min > dpt) {
+        min = dpt;
+      }
+    });
+    return min;
+  }
+
   public get(id) {
     return this.core.get(id);
   }
@@ -188,17 +188,102 @@ export class NestedTree<T> {
     return new NestedNode(nodeData, this.core);
   }
 
-  public push(item: T | NestedTree<T>) {
+  /**
+   * 在最后面添加元素
+   */
+  public push(item: NewNode<T, S>) {
+    const newTree = this.core.buildNewNode(item);
+    if (!newTree.core.size()) {
+      return this;
+    }
+    if (!this.core.size()) {
+      this.core.map = newTree.core.map;
+      this.core.list = newTree.core.list;
+      return this;
+    }
+
     const maxRgt = this.getMaxRgt();
+    const minDpt = this.getMinDpt();
+
+    const newMinLft = newTree.getMinLft();
+    const newMinDpt = newTree.getMinDpt();
+    const diffVal = maxRgt + 1 - newMinLft;
+    const diffDpt = minDpt - newMinDpt;
+
+    if (diffVal) {
+      newTree.core.forEach((o) => {
+        let lft = this.core.getLft(o) + diffVal;
+        let rgt = this.core.getRgt(o) + diffVal;
+        this.core.setLft(o, lft);
+        this.core.setRgt(o, rgt);
+      });
+    }
+
+    if (diffDpt) {
+      newTree.core.forEach((o) => {
+        let dpt = this.core.getDpt(o) + diffDpt;
+        this.core.setDpt(o, dpt);
+      });
+    }
+
+    this.core.list.push(...newTree.core.list);
+    Object.assign(this.core.map, newTree.core.map);
+
+    return this;
+  }
+
+  /**
+   * 在最前面添加元素
+   */
+  public unshift(item: NewNode<T, S>) {
+    const newTree = this.core.buildNewNode(item);
+    if (!newTree.core.size()) {
+      return this;
+    }
+    if (!this.core.size()) {
+      this.core.map = newTree.core.map;
+      this.core.list = newTree.core.list;
+      return this;
+    }
+
+    const minLft = this.getMinLft();
+    const minDpt = this.getMinDpt();
+
+    const newMaxRgt = newTree.getMaxRgt();
+    const newMinDpt = newTree.getMinDpt();
+    const diffVal = newMaxRgt + 1 - minLft;
+    const diffDpt = minDpt - newMinDpt;
+
+    if (diffVal) {
+      this.core.forEach((o) => {
+        let lft = this.core.getLft(o) + diffVal;
+        let rgt = this.core.getRgt(o) + diffVal;
+        this.core.setLft(o, lft);
+        this.core.setRgt(o, rgt);
+      });
+    }
+
+    if (diffDpt) {
+      newTree.core.forEach((o) => {
+        let dpt = this.core.getDpt(o) + diffDpt;
+        this.core.setDpt(o, dpt);
+      });
+    }
+
+    this.core.list.push(...newTree.core.list);
+    Object.assign(this.core.map, newTree.core.map);
+
+    return this;
   }
 }
 
-class NestedCore<T> {
+class NestedCore<T, S> {
   constructor(list: Array<T>, options?: TreeOptions<T>) {
+    this.options = options;
     this.init(list, options);
   }
 
-  init(list: Array<T>, options?: TreeOptions<T>) {
+  private init(list: Array<T>, options?: TreeOptions<T>) {
     const id = options?.id || "id";
     const lft = options?.lft || "lft";
     const rgt = options?.rgt || "rgt";
@@ -250,6 +335,9 @@ class NestedCore<T> {
 
   public list: Array<T>;
   public map: { [key: string]: T };
+
+  public from: "flat" | "item";
+  public options: TreeOptions<T>;
   public get: (id) => T;
 
   public getId: (o: T) => string | number;
@@ -260,19 +348,44 @@ class NestedCore<T> {
   public getDpt: (o: T) => number;
   public setDpt: (o: T, n: number) => any;
 
+  public size(): number {
+    return this.list.length;
+  }
+
   public forEach(fn) {
     this.list.forEach(fn, this);
   }
+
+  public buildNewNode(item: NewNode<T, S>): NestedTree<T, S> {
+    if (!item) {
+      return new NestedTree<T, S>([]);
+    }
+    if (item instanceof NestedTree) {
+      return item;
+    }
+
+    if (!Array.isArray(item)) {
+      item = [item];
+    }
+
+    if (this.from === "flat") {
+      return NestedTree.fromFlat<T, S>(item, this.options);
+    }
+    if (this.from === "item") {
+      return NestedTree.fromItem<T, S>(item, this.options);
+    }
+    return new NestedTree<T, S>(item as any, this.options);
+  }
 }
 
-class NestedNode<T> {
-  constructor(nodeData, core: NestedCore<T>) {
+class NestedNode<T, S> {
+  constructor(nodeData, core: NestedCore<T, S>) {
     this.nodeData = nodeData;
     this.core = core;
   }
 
   private nodeData;
-  private core: NestedCore<T>;
+  private core: NestedCore<T, S>;
 
   value() {}
 

@@ -13,7 +13,10 @@ import encoding from "encoding";
 //   }
 // );
 
-let b = fs.readFileSync("./1").toString();
+let b = fs.readFileSync("./1", {
+    encoding: "binary"
+})
 
+console.log("b",b);
 
-console.log(encoding.convert(b, "cp936", "utf8").toString("hex"));;
+// console.log(encoding.convert(b, "cp936", "utf8").toString("hex"));;

@@ -28,3 +28,4 @@ type BuildFlatOptions<T> = {
   setItem?: (o: T, lft: number, rgt: number, depth: number) => any;
 };
 
+type idFn<T> = string | number | ((o: T) => boolean);

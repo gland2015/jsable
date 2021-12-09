@@ -197,7 +197,6 @@ export class NestedTree<T, S> {
       return this;
     }
     if (!this.core.size()) {
-      this.core.map = newTree.core.map;
       this.core.list = newTree.core.list;
       return this;
     }
@@ -227,7 +226,6 @@ export class NestedTree<T, S> {
     }
 
     this.core.list.push(...newTree.core.list);
-    Object.assign(this.core.map, newTree.core.map);
 
     return this;
   }
@@ -241,7 +239,6 @@ export class NestedTree<T, S> {
       return this;
     }
     if (!this.core.size()) {
-      this.core.map = newTree.core.map;
       this.core.list = newTree.core.list;
       return this;
     }
@@ -271,7 +268,6 @@ export class NestedTree<T, S> {
     }
 
     this.core.list.push(...newTree.core.list);
-    Object.assign(this.core.map, newTree.core.map);
 
     return this;
   }
@@ -319,26 +315,12 @@ class NestedCore<T, S> {
         o[rgt] = n;
       };
     }
-
-    const map = Object.create(null);
-
-    let minLft = null;
-    let maxRgt = null;
-
-    list.forEach((o) => {
-      const id = this.getId(o);
-      map[id] = o;
-    });
-    this.list = list;
-    this.map = map;
   }
 
   public list: Array<T>;
-  public map: { [key: string]: T };
 
   public from: "flat" | "item";
   public options: TreeOptions<T>;
-  public get: (id) => T;
 
   public getId: (o: T) => string | number;
   public getLft: (o: T) => number;
@@ -352,8 +334,35 @@ class NestedCore<T, S> {
     return this.list.length;
   }
 
+  public get(id: idFn<T>): T {
+    let result: T;
+    let is;
+    if (typeof id === "function") {
+      is = id;
+    } else {
+      is = (o) => {
+        let oId = this.getId(o);
+        return oId === id;
+      };
+    }
+
+    const l = this.list.length;
+    for (let i = 0; i < l; i++) {
+      const o = this.list[i];
+      if (is(o)) {
+        result = o;
+        break;
+      }
+    }
+
+    return result;
+  }
+
   public forEach(fn) {
-    this.list.forEach(fn, this);
+    const l = this.list.length;
+    for (let i = 0; i < l; i++) {
+      fn(this.list[i]);
+    }
   }
 
   public buildNewNode(item: NewNode<T, S>): NestedTree<T, S> {
@@ -376,6 +385,46 @@ class NestedCore<T, S> {
     }
     return new NestedTree<T, S>(item as any, this.options);
   }
+
+  public add(startLeft: number, list: Array<T>) {
+    let startRight = startLeft + 1;
+    let addNum = list.length * 2;
+    this.forEach((o) => {
+      let lft = this.getLft(o);
+      let rgt = this.getRgt(o);
+
+      if (lft >= startLeft) {
+        this.setLft(o, lft + addNum);
+      }
+
+      if (rgt >= startRight) {
+        this.setRgt(o, rgt + addNum);
+      }
+    });
+  }
+
+  public remove(minLeft: number, maxRight: number) {
+    const newList = [];
+    let diff = maxRight - minLeft;
+    this.forEach((o) => {
+      let lft = this.getLft(o);
+      let rgt = this.getRgt(o);
+
+      if (lft >= minLeft && rgt <= maxRight) {
+        return;
+      }
+      if (lft > minLeft) {
+        this.setLft(o, lft - diff);
+      }
+      if (rgt > maxRight) {
+        this.setRgt(o, rgt - diff);
+      }
+      newList.push(o);
+    });
+    this.list = newList;
+  }
+
+  public move(minLeft: number, maxRight: number, tarLeft: number) {}
 }
 
 class NestedNode<T, S> {
@@ -399,3 +448,100 @@ class NestedNode<T, S> {
 let t = new NestedTree([]);
 
 t.get;
+
+/**
+
+这是一条从左值开始递增的线，若一值小，则先确定，后面的变动不会影响它
+[1 2] [3 4] [5 6] [7 8] [8 9]
+
+一、添加：
+  设新节点左值为l1,右值则为r1 = l1+1
+  则原来的节点:
+    1、左值>=l1，左值加2
+    2、右值>=r1，右值加2
+二、移除：
+  设目标节点左值为l1，右值为r1，差为d1 = r1 - l1
+  则剩余的节点:
+    1、左值>l1，左值减d1
+    2、右值>r1，右值减d1
+三、移动：
+  设目标节点左值为l1，右值为r1，差为d1 = r1 - l1
+  设占位添加后的左值为l2,右值则为r2 = l2 + d1
+1、占位添加
+  (新-2)
+  当前节点及其子节点:
+    (1)左右都加 l2 - l1
+  则其余节点:
+    (1)左值>=l2，左值加d1
+    (2)右值>=r2，右值加d1
+2、移除
+  (原-3)
+  若l1>=l2，由r = l + d, 得出r1>=r2
+    则l3 = l1 + d1, r3 = r1 + d1  = l1 + 2d1;
+    否l3 = l1, r3 = r1 = l1 + d1;
+  则所有节点接前一步操作后:
+    (1)左值>l3，左值减d1
+    (2)右值>r3，右值减d1
+3、合并操作
+  设讨论节点左值为x,右值为y;
+  若l1>=l2,
+    对于其余节点(x<l1 || (y>r1 -> y>l1+d1))：
+      (1)若(x>=l2 && (x + d1 <=l1 + d1 -> x <= l1))
+          即(x>=l2 && x <= l1)
+          左值加d1
+        否则若(x<l2 && x>l1+d1) -> 不存在
+          左值减d1
+        否则
+          不变
+      (2)若(y>=r2 = l2 + d1 && (y + d1 <= r1 + d1 -> y <= l1 + d1))
+          即(y > l2 + d1 && y <= l1 + d1)
+          即(l2 + d1 < y <= l1 + d1)
+          右值加d1
+        否则若(y<r2 && y > r1 + d1)
+          即(y<l2+d1 && y > l1 + 2d1)
+          即(l1 + d1 < y - d1 < l2) -> 不存在
+          右值减d1
+        否则
+          不变
+    对于目标节点(x >= l1 && y<=r1 = l1 + d1):
+      (1)若(x + l2 - l1 > l1 + d1)
+          即(x > 2l1 - l2 + d1)
+          左值 加 l2 - l1 - d1
+        否则
+          左值 加 l2 - l1
+      (2)若(y + l2 - l1 > r1 + d1)
+          即(y > 2*l1 + 2*d1 - l2)
+          右值 加 l2 - l1 - d1
+        否则
+          右值 加 l2 - l1
+  若l1<l2,
+    对于其余节点(x<l1 || (y>r1 -> y>l1+d1)):
+      (1)若(x >= l2 && x + d1 <= l1)
+          即(x >= l2 && x <= l1 - d1) - 不存在
+          左值加d1
+        否则若(x<l2 && x>l1)
+          左值减d1
+        否则不变
+      (2)若(y>=r2 && y + d1 <= r1)
+        即(l2 + d1 < y <= l1)  -> 不存在
+          右值加d1
+        否则若(y<r2 && y>r1)
+          即(l1 + d1 < y < l2 + d1)
+          右值减d1
+        否则
+          不变
+    对于目标节点(x >= l1 && y<=r1 = l1 + d1):
+      (1)若(x + l2 - l1 > l1)
+          即 (x > 2*l1 - l2)
+          左值 加 l2 - l1 - d1
+        否则
+          左值 加 l2 - l1
+      (2)若(y + l2 - l1 > r1)
+          即(y > 2 * l1 - l2 + d1)
+          右值 加 l2 - l1 - d1
+        否则
+          右值 加 l2 - l1
+
+
+
+ */

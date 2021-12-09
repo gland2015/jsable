@@ -424,7 +424,48 @@ class NestedCore<T, S> {
     this.list = newList;
   }
 
-  public move(minLeft: number, maxRight: number, tarLeft: number) {}
+  public move(l1: number, r1: number, l2: number) {
+    const d1 = r1 - l1;
+    const diff = l2 - l1;
+    const flag = l1 >= l2;
+
+    this.forEach((o) => {
+      const x = this.getLft(o);
+      const y = this.getRgt(o);
+      const isMove = isMoveNode(x, y);
+      if (flag) {
+        if (isMove) {
+          this.setLft(o, x + diff);
+          this.setRgt(o, y + diff);
+        } else {
+          if (x >= l2 && x <= l1) {
+            this.setLft(o, x + d1);
+          }
+
+          if (y > l2 + d1 && y <= r1) {
+            this.setRgt(o, y + d1);
+          }
+        }
+      } else {
+        if (isMove) {
+          this.setLft(o, x + diff - d1);
+          this.setRgt(o, y + diff - d1);
+        } else {
+          if (x < l2 && x > l1) {
+            this.setLft(o, x - d1);
+          }
+
+          if (y < l2 + d1 && y > r1) {
+            this.setRgt(o, y - d1);
+          }
+        }
+      }
+    });
+
+    function isMoveNode(x, y) {
+      return x <= l1 && y <= r1;
+    }
+  }
 }
 
 class NestedNode<T, S> {
@@ -504,12 +545,14 @@ t.get;
         否则
           不变
     对于目标节点(x >= l1 && y<=r1 = l1 + d1):
-      (1)若(x + l2 - l1 > l1 + d1)
-          即(x > 2l1 - l2 + d1)
+      (1)若(x + l2 - l1 > l1 + d1)  
+          即(x > 2 * l1 - l2 + d1)
+            [-> 由l1 - l2 > d1 (不能移动到自身) -> l1 - l2 > d1 -> x > l1 + 2 * d1] 
+            -> 不存在
           左值 加 l2 - l1 - d1
         否则
           左值 加 l2 - l1
-      (2)若(y + l2 - l1 > r1 + d1)
+      (2)若(y + l2 - l1 > r1 + d1)  -> 一致同左值 不存在
           即(y > 2*l1 + 2*d1 - l2)
           右值 加 l2 - l1 - d1
         否则
@@ -531,12 +574,12 @@ t.get;
         否则
           不变
     对于目标节点(x >= l1 && y<=r1 = l1 + d1):
-      (1)若(x + l2 - l1 > l1)
+      (1)若(x + l2 - l1 > l1)  -> 必存在
           即 (x > 2*l1 - l2)
           左值 加 l2 - l1 - d1
-        否则
+        否则      -> 不存在
           左值 加 l2 - l1
-      (2)若(y + l2 - l1 > r1)
+      (2)若(y + l2 - l1 > r1)   -> 由左值确定，同增同减
           即(y > 2 * l1 - l2 + d1)
           右值 加 l2 - l1 - d1
         否则

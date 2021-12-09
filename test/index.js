@@ -13,10 +13,19 @@ import encoding from "encoding";
 //   }
 // );
 
-let b = fs.readFileSync("./1", {
-    encoding: "binary"
+import iconvLite from "iconv-lite";
+
+child_process.exec("chcp 65001 && test.bat", function(e, s) {
+    console.log(s);
 })
 
-console.log("b",b);
+// const ls = child_process.spawn("chcp 65001");
 
-// console.log(encoding.convert(b, "cp936", "utf8").toString("hex"));;
+// ls.stdout.on("data", (data) => {
+//   console.log("data", data.toString());
+//     // console.log(`stdout: ${iconvLite.decode(data, "cp936")}`);
+// });
+
+// ls.on("close", (code) => {
+//   console.log(`子进程退出码：${iconvLite.decode(code, "cp936")}`);
+// });

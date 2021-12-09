@@ -1,2 +1,2 @@
 @echo off
-echo "代码"
+echo "代码页"

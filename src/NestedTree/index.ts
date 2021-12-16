@@ -1,6 +1,6 @@
 import "./index.d";
 
-type NewNode<T, S> = S | Array<S> | NestedTree<T, S>;
+type NewNode<T, S> = S | Array<S> | NestedTree<T, S> | NestedNode<any, any>;
 
 /**
  * 嵌套模型树
@@ -140,45 +140,6 @@ export class NestedTree<T, S> {
     return this.core.list;
   }
 
-  private getMaxRgt(): number | null {
-    let max = null;
-    this.core.forEach((o) => {
-      let rgt = this.core.getRgt(o);
-      if (max === null) {
-        max = rgt;
-      } else if (max < rgt) {
-        max = rgt;
-      }
-    });
-    return max;
-  }
-
-  private getMinLft(): number | null {
-    let min = null;
-    this.core.forEach((o) => {
-      let lft = this.core.getLft(o);
-      if (min === null) {
-        min = lft;
-      } else if (min > lft) {
-        min = lft;
-      }
-    });
-    return min;
-  }
-
-  private getMinDpt(): number | null {
-    let min = null;
-    this.core.forEach((o) => {
-      let dpt = this.core.getDpt(o);
-      if (min === null) {
-        min = dpt;
-      } else if (min > dpt) {
-        min = dpt;
-      }
-    });
-    return min;
-  }
-
   public get(id) {
     return this.core.get(id);
   }
@@ -191,41 +152,15 @@ export class NestedTree<T, S> {
   /**
    * 在最后面添加元素
    */
-  public push(item: NewNode<T, S>) {
-    const newTree = this.core.buildNewNode(item);
-    if (!newTree.core.size()) {
-      return this;
+  public push(item: NewNode<T, S> | NestedNode<T, S>) {
+    const position = 2;
+    if (item instanceof NestedNode && item["core"] === this.core) {
+      // 移动节点
+      this.core.move(null, item, position);
+    } else {
+      const newList = this.core.buildNewNode(item);
+      this.core.add(newList, null, position);
     }
-    if (!this.core.size()) {
-      this.core.list = newTree.core.list;
-      return this;
-    }
-
-    const maxRgt = this.getMaxRgt();
-    const minDpt = this.getMinDpt();
-
-    const newMinLft = newTree.getMinLft();
-    const newMinDpt = newTree.getMinDpt();
-    const diffVal = maxRgt + 1 - newMinLft;
-    const diffDpt = minDpt - newMinDpt;
-
-    if (diffVal) {
-      newTree.core.forEach((o) => {
-        let lft = this.core.getLft(o) + diffVal;
-        let rgt = this.core.getRgt(o) + diffVal;
-        this.core.setLft(o, lft);
-        this.core.setRgt(o, rgt);
-      });
-    }
-
-    if (diffDpt) {
-      newTree.core.forEach((o) => {
-        let dpt = this.core.getDpt(o) + diffDpt;
-        this.core.setDpt(o, dpt);
-      });
-    }
-
-    this.core.list.push(...newTree.core.list);
 
     return this;
   }
@@ -233,41 +168,116 @@ export class NestedTree<T, S> {
   /**
    * 在最前面添加元素
    */
-  public unshift(item: NewNode<T, S>) {
-    const newTree = this.core.buildNewNode(item);
-    if (!newTree.core.size()) {
-      return this;
-    }
-    if (!this.core.size()) {
-      this.core.list = newTree.core.list;
-      return this;
-    }
-
-    const minLft = this.getMinLft();
-    const minDpt = this.getMinDpt();
-
-    const newMaxRgt = newTree.getMaxRgt();
-    const newMinDpt = newTree.getMinDpt();
-    const diffVal = newMaxRgt + 1 - minLft;
-    const diffDpt = minDpt - newMinDpt;
-
-    if (diffVal) {
-      this.core.forEach((o) => {
-        let lft = this.core.getLft(o) + diffVal;
-        let rgt = this.core.getRgt(o) + diffVal;
-        this.core.setLft(o, lft);
-        this.core.setRgt(o, rgt);
-      });
+  public unshift(item: NewNode<T, S> | NestedNode<T, S>) {
+    const position = 1;
+    if (item instanceof NestedNode && item["core"] === this.core) {
+      // 移动节点
+      this.core.move(null, item, position);
+    } else {
+      const newList = this.core.buildNewNode(item);
+      this.core.add(newList, null, position);
     }
 
-    if (diffDpt) {
-      newTree.core.forEach((o) => {
-        let dpt = this.core.getDpt(o) + diffDpt;
-        this.core.setDpt(o, dpt);
-      });
+    return this;
+  }
+}
+
+class NestedNode<T, S> {
+  constructor(nodeData, core: NestedCore<T, S>) {
+    this.nodeData = nodeData;
+    this.core = core;
+  }
+
+  public nodeData;
+  private core: NestedCore<T, S>;
+
+  get lft() {
+    return this.core.getLft(this.nodeData);
+  }
+
+  get rgt() {
+    return this.core.getRgt(this.nodeData);
+  }
+
+  get dpt() {
+    return this.core.getDpt(this.nodeData);
+  }
+
+  values(): Array<T> {
+    let list = [];
+    const theLft = this.core.getLft(this.nodeData);
+    const theRgt = this.core.getDpt(this.nodeData);
+
+    this.core.forEach((o) => {
+      let lft = this.core.getLft(o);
+      let rgt = this.core.getRgt(o);
+
+      if (lft >= theLft && rgt <= theRgt) {
+        list.push(o);
+      }
+    });
+
+    return list;
+  }
+
+  /**
+   * 添加到节点的子节点的最后
+   */
+  push(item: NewNode<T, S> | NestedNode<T, S>) {
+    const position = 4;
+    if (item instanceof NestedNode && item["core"] === this.core) {
+      // 移动节点
+      this.core.move(this, item, position);
+    } else {
+      // 追加节点
+      const newList = this.core.buildNewNode(item);
+      this.core.add(newList, this, position);
     }
 
-    this.core.list.push(...newTree.core.list);
+    return this;
+  }
+
+  /**
+   * 添加到节点的子节点最前
+   */
+  unshift(item: NewNode<T, S> | NestedNode<T, S>) {
+    const position = 3;
+    if (item instanceof NestedNode && item["core"] === this.core) {
+      // 移动节点
+      this.core.move(this, item, position);
+    } else {
+      // 添加节点
+      const newList = this.core.buildNewNode(item);
+      this.core.add(newList, null, position);
+    }
+
+    return this;
+  }
+
+  link(item: NewNode<T, S> | NestedNode<T, S>) {
+    const position = 2;
+    if (item instanceof NestedNode && item["core"] === this.core) {
+      // 移动节点
+      this.core.move(this, item, position);
+    } else {
+      // 添加节点
+      const newList = this.core.buildNewNode(item);
+      this.core.add(newList, null, position);
+    }
+
+    return this;
+  }
+
+  linkBefore(item: NewNode<T, S> | NestedNode<T, S>) {
+    const position = 1;
+    if (item instanceof NestedNode && item["core"] === this.core) {
+      // 移动节点
+      this.core.move(this, item, position);
+    } else {
+      // 添加节点
+      const newList = this.core.buildNewNode(item);
+      this.core.add(newList, null, position);
+    }
 
     return this;
   }
@@ -358,19 +368,23 @@ class NestedCore<T, S> {
     return result;
   }
 
-  public forEach(fn) {
-    const l = this.list.length;
+  public forEach(fn, list = this.list) {
+    const l = list.length;
     for (let i = 0; i < l; i++) {
-      fn(this.list[i]);
+      fn(list[i]);
     }
   }
 
-  public buildNewNode(item: NewNode<T, S>): NestedTree<T, S> {
+  public buildNewNode(item: NewNode<T, S>): Array<T> {
     if (!item) {
-      return new NestedTree<T, S>([]);
+      return [];
     }
     if (item instanceof NestedTree) {
-      return item;
+      return item.values();
+    }
+
+    if (item instanceof NestedNode) {
+      return item.values();
     }
 
     if (!Array.isArray(item)) {
@@ -378,29 +392,156 @@ class NestedCore<T, S> {
     }
 
     if (this.from === "flat") {
-      return NestedTree.fromFlat<T, S>(item, this.options);
+      return NestedTree.fromFlat<T, S>(item, this.options).values();
     }
     if (this.from === "item") {
-      return NestedTree.fromItem<T, S>(item, this.options);
+      return NestedTree.fromItem<T, S>(item, this.options).values();
     }
-    return new NestedTree<T, S>(item as any, this.options);
+    return new NestedTree<T, S>(item as any, this.options).values();
   }
 
-  public add(startLeft: number, list: Array<T>) {
-    let startRight = startLeft + 1;
-    let addNum = list.length * 2;
+  /**
+   * 获取右值最大的元素
+   */
+  public maxRgtItem(list?: Array<T>): T | null {
+    let maxItem = null;
+    let maxRgt = null;
+    this.forEach((o) => {
+      const rgt = this.getRgt(o);
+      if (maxRgt === null || maxRgt < rgt) {
+        maxItem = o;
+        maxRgt = rgt;
+      }
+    }, list);
+    return maxItem;
+  }
+
+  /**
+   * 获取左值最小的元素
+   */
+  public minLftItem(list?: Array<T>): T | null {
+    let minItem = null;
+    let minLft = null;
     this.forEach((o) => {
       let lft = this.getLft(o);
-      let rgt = this.getRgt(o);
-
-      if (lft >= startLeft) {
-        this.setLft(o, lft + addNum);
+      if (minLft === null || minLft > lft) {
+        minItem = o;
+        minLft = lft;
       }
+    }, list);
+    return minItem;
+  }
 
-      if (rgt >= startRight) {
-        this.setRgt(o, rgt + addNum);
+  /**
+   * 添加子列表
+   *
+   * position:
+   *  1 - tarNode左边，或最左(无tarNode)
+   *  2 - tarNode右边，或最右(无tarNode)
+   *  3 - tarNode的最前子节点
+   *  4 - tarNode的最后子节点
+   */
+  public add(list: Array<T>, tarNode: NestedNode<T, S>, position: PosType) {
+    if (!list.length) return this;
+    if (!this.list.length) {
+      this.list = list;
+      return this;
+    }
+
+    let curAdd: number, newAdd: number, newDptAdd: number;
+    let targetLft;
+    if (tarNode) {
+      const newMinLftItem = this.minLftItem(list);
+      const newMinLft = this.getLft(newMinLftItem);
+      const newLftDpt = this.getDpt(newMinLftItem);
+
+      const newMaxRgtItem = this.maxRgtItem(list);
+      const newMaxRgt = this.getRgt(newMaxRgtItem);
+      const newRgtDpt = this.getDpt(newMaxRgtItem);
+
+      if (position === 1 || position === 3) {
+        targetLft = position === 1 ? tarNode.lft : tarNode.lft + 1;
+        const tarDpt = position === 1 ? tarNode.dpt : tarNode.dpt - 1;
+        newDptAdd = tarDpt - newRgtDpt;
+      } else {
+        targetLft = position === 2 ? tarNode.rgt : tarNode.rgt - 1;
+        const tarDpt = position === 2 ? tarNode.dpt : tarNode.dpt - 1;
+        newDptAdd = tarDpt - newLftDpt;
       }
-    });
+      curAdd = newMaxRgt - newMinLft + 1;
+      newAdd = targetLft - newMinLft;
+    } else {
+      if (position === 1) {
+        // unshift
+        const minLftItem = this.minLftItem();
+        const minLft = this.getLft(minLftItem);
+        const minLftDpt = this.getDpt(minLftItem);
+
+        const newMaxRgtItem = this.maxRgtItem(list);
+        const newMaxRgt = this.getRgt(newMaxRgtItem);
+        const newMinRgtDpt = this.getDpt(newMaxRgtItem);
+
+        const newMinLftItem = this.minLftItem(list);
+        const newMinLft = this.getLft(newMinLftItem);
+
+        targetLft = minLft;
+
+        curAdd = newMaxRgt + 1 - newMinLft;
+        newAdd = minLft - newMinLft;
+        newDptAdd = minLftDpt - newMinRgtDpt;
+      } else {
+        // push
+        const lftItem = this.minLftItem(list);
+        const newLft = this.getLft(lftItem);
+        const newDpt = this.getDpt(lftItem);
+
+        const maxRgtItem = this.maxRgtItem();
+        const maxRgt = this.getRgt(maxRgtItem);
+        const maxRgtDpt = this.getDpt(maxRgtItem);
+
+        targetLft = maxRgt + 1;
+
+        newAdd = maxRgt + 1 - newLft;
+        newDptAdd = maxRgtDpt - newDpt;
+      }
+    }
+
+    if (curAdd) {
+      this.forEach((o) => {
+        let lft = this.getLft(o);
+        let rgt = this.getRgt(o);
+
+        if (lft >= targetLft) {
+          lft += curAdd;
+          this.setLft(o, lft);
+        }
+
+        if (rgt >= targetLft) {
+          rgt += curAdd;
+          this.setRgt(o, rgt);
+        }
+      });
+    }
+
+    if (newAdd) {
+      this.forEach((o) => {
+        let lft = this.getLft(o) + newAdd;
+        let rgt = this.getRgt(o) + newAdd;
+        this.setLft(o, lft);
+        this.setRgt(o, rgt);
+      });
+    }
+
+    if (newDptAdd) {
+      this.forEach((o) => {
+        let dpt = this.getDpt(o) + newDptAdd;
+        this.setDpt(o, dpt);
+      });
+    }
+
+    this.list.push(...list);
+
+    return this;
   }
 
   public remove(minLeft: number, maxRight: number) {
@@ -424,71 +565,100 @@ class NestedCore<T, S> {
     this.list = newList;
   }
 
-  public move(l1: number, r1: number, l2: number) {
+  public move(curNode: NestedNode<T, S>, moveNode: NestedNode<T, S>, position: PosType) {
+    const initLft = moveNode.lft;
+    const initRgt = moveNode.rgt;
+
+    let tarLft, dptAdd;
+
+    if (curNode) {
+      if (position === 1) {
+        tarLft = curNode.lft;
+        dptAdd = curNode.dpt - moveNode.dpt;
+      } else if (position === 2) {
+        tarLft = curNode.rgt + 1;
+        dptAdd = curNode.dpt - moveNode.dpt;
+      } else if (position === 3) {
+        tarLft = curNode.lft + 1;
+        dptAdd = curNode.dpt - 1 - moveNode.dpt;
+      } else {
+        tarLft = curNode.rgt;
+        dptAdd = curNode.dpt - 1 - moveNode.dpt;
+      }
+    } else {
+      if (position === 1) {
+        const minLftItem = this.minLftItem();
+        const minLft = this.getLft(minLftItem);
+        const minLftDpt = this.getDpt(minLftItem);
+
+        tarLft = minLft;
+        dptAdd = minLftDpt - moveNode.dpt;
+      } else {
+        const maxRgtItem = this.maxRgtItem();
+        const maxRgt = this.getRgt(maxRgtItem);
+        const maxRgtDpt = this.getDpt(maxRgtItem);
+
+        tarLft = maxRgt + 1;
+        dptAdd = maxRgtDpt - moveNode.dpt;
+      }
+    }
+    this.move_(initLft, initRgt, tarLft, dptAdd);
+  }
+
+  public move_(l1: number, r1: number, l2: number, dptDiff: number) {
+    if (l1 <= l2 && l2 <= r1) {
+      throw new Error("can not move to self!");
+    }
+
     const d1 = r1 - l1;
     const diff = l2 - l1;
-    const flag = l1 >= l2;
+    const isBack = l1 >= l2;
 
     this.forEach((o) => {
       const x = this.getLft(o);
       const y = this.getRgt(o);
+
       const isMove = isMoveNode(x, y);
-      if (flag) {
+      if (isBack) {
         if (isMove) {
           this.setLft(o, x + diff);
           this.setRgt(o, y + diff);
+          if (dptDiff) {
+            this.setDpt(o, this.getDpt(o) + dptDiff);
+          }
         } else {
           if (x >= l2 && x <= l1) {
-            this.setLft(o, x + d1);
+            this.setLft(o, x + d1 + 1);
           }
 
-          if (y > l2 + d1 && y <= r1) {
-            this.setRgt(o, y + d1);
+          if (y >= l2 && y <= l1) {
+            this.setRgt(o, y + d1 + 1);
           }
         }
       } else {
         if (isMove) {
           this.setLft(o, x + diff - d1);
           this.setRgt(o, y + diff - d1);
+          if (dptDiff) {
+            this.setDpt(o, this.getDpt(o) + dptDiff);
+          }
         } else {
           if (x < l2 && x > l1) {
-            this.setLft(o, x - d1);
+            this.setLft(o, x - d1 - 1);
           }
 
-          if (y < l2 + d1 && y > r1) {
-            this.setRgt(o, y - d1);
+          if (y < l2 && y > l1) {
+            this.setRgt(o, y - d1 - 1);
           }
         }
       }
     });
 
     function isMoveNode(x, y) {
-      return x <= l1 && y <= r1;
+      return x >= l1 && y <= r1;
     }
   }
 }
-
-class NestedNode<T, S> {
-  constructor(nodeData, core: NestedCore<T, S>) {
-    this.nodeData = nodeData;
-    this.core = core;
-  }
-
-  private nodeData;
-  private core: NestedCore<T, S>;
-
-  value() {}
-
-  push() {}
-  unshift() {}
-
-  link() {}
-  linkBefore() {}
-}
-
-let t = new NestedTree([]);
-
-t.get;
 
 /**
 
@@ -496,95 +666,72 @@ t.get;
 [1 2] [3 4] [5 6] [7 8] [8 9]
 
 一、添加：
-  设新节点左值为l1,右值则为r1 = l1+1
+  设新节点左值为l1，右值为r1，设差d1 = r1 - l1
   则原来的节点:
-    1、左值>=l1，左值加2
-    2、右值>=r1，右值加2
+    1、左值>=l1，左值加d1 + 1
+    2、右值>=l1，右值加d1 + 1
 二、移除：
-  设目标节点左值为l1，右值为r1，差为d1 = r1 - l1
+  设目标节点左值为l1，右值为r1，设差d1 = r1 - l1
   则剩余的节点:
-    1、左值>l1，左值减d1
-    2、右值>r1，右值减d1
+    1、左值>l1，左值减d1 + 1
+    2、右值>l1，右值减d1 + 1
 三、移动：
-  设目标节点左值为l1，右值为r1，差为d1 = r1 - l1
+  设目标节点左值为l1，右值为r1，设差d1 = r1 - l1
   设占位添加后的左值为l2,右值则为r2 = l2 + d1
 1、占位添加
   (新-2)
   当前节点及其子节点:
     (1)左右都加 l2 - l1
   则其余节点:
-    (1)左值>=l2，左值加d1
-    (2)右值>=r2，右值加d1
+    (1)左值>=l2，左值加d1 + 1
+    (2)右值>=l2，右值加d1 + 1
 2、移除
   (原-3)
-  若l1>=l2，由r = l + d, 得出r1>=r2
-    则l3 = l1 + d1, r3 = r1 + d1  = l1 + 2d1;
+  若l1>=l2，
+    则l3 = l1 + d1 + 1, r3 = r1 + d1 + 1  = l1 + 2 * d1 + 1;
     否l3 = l1, r3 = r1 = l1 + d1;
-  则所有节点接前一步操作后:
-    (1)左值>l3，左值减d1
-    (2)右值>r3，右值减d1
+  则所有节点接前一步操作后的:
+    (1)左值>l3，左值减d1 + 1
+    (2)右值>l3，右值减d1 + 1
 3、合并操作
   设讨论节点左值为x,右值为y;
   若l1>=l2,
-    对于其余节点(x<l1 || (y>r1 -> y>l1+d1))：
-      (1)若(x>=l2 && (x + d1 <=l1 + d1 -> x <= l1))
+    对于其余节点(x < l1 || (y>r1 -> y > l1 + d1))：
+      (1)若(x>=l2 && (x + d1 + 1 <=l1 + d1 + 1 -> x <= l1))
           即(x>=l2 && x <= l1)
-          左值加d1
-        否则若(x<l2 && x>l1+d1) -> 不存在
-          左值减d1
+          左值加d1 + 1
+        否则若(x < l2 && x > l1 + d1 + 1) -> 不存在
+          左值减(d1 + 1)
         否则
           不变
-      (2)若(y>=r2 = l2 + d1 && (y + d1 <= r1 + d1 -> y <= l1 + d1))
-          即(y > l2 + d1 && y <= l1 + d1)
-          即(l2 + d1 < y <= l1 + d1)
-          右值加d1
-        否则若(y<r2 && y > r1 + d1)
-          即(y<l2+d1 && y > l1 + 2d1)
-          即(l1 + d1 < y - d1 < l2) -> 不存在
-          右值减d1
-        否则
-          不变
+      (2)右值同样
+
     对于目标节点(x >= l1 && y<=r1 = l1 + d1):
-      (1)若(x + l2 - l1 > l1 + d1)  
-          即(x > 2 * l1 - l2 + d1)
-            [-> 由l1 - l2 > d1 (不能移动到自身) -> l1 - l2 > d1 -> x > l1 + 2 * d1] 
+      (1)若(x + l2 - l1 > l1 + d1 + 1)  
+          即(x > 2 * l1 - l2 + d1 + 1)
+            [-> 由l1 - l2 > d1 (不能移动到自身) -> x > l1 + 2 * d1 + 1] 
             -> 不存在
-          左值 加 l2 - l1 - d1
+          左值 加 l2 - l1 - d1 - 1
         否则
           左值 加 l2 - l1
-      (2)若(y + l2 - l1 > r1 + d1)  -> 一致同左值 不存在
-          即(y > 2*l1 + 2*d1 - l2)
-          右值 加 l2 - l1 - d1
-        否则
-          右值 加 l2 - l1
+      (2)右值同上
+
   若l1<l2,
-    对于其余节点(x<l1 || (y>r1 -> y>l1+d1)):
-      (1)若(x >= l2 && x + d1 <= l1)
-          即(x >= l2 && x <= l1 - d1) - 不存在
-          左值加d1
+    对于其余节点(x < l1 || (y>r1 -> y > l1 + d1))：
+      (1)若(x >= l2 && x + d1 + 1 <= l1)
+          即(x >= l2 && x <= l1 - d1 - 1) - 不存在
+          左值加d1 + 1
         否则若(x<l2 && x>l1)
-          左值减d1
+          左值减(d1 + 1)
         否则不变
-      (2)若(y>=r2 && y + d1 <= r1)
-        即(l2 + d1 < y <= l1)  -> 不存在
-          右值加d1
-        否则若(y<r2 && y>r1)
-          即(l1 + d1 < y < l2 + d1)
-          右值减d1
-        否则
-          不变
+      (2)右值同样
+      
     对于目标节点(x >= l1 && y<=r1 = l1 + d1):
-      (1)若(x + l2 - l1 > l1)  -> 必存在
+      (1)若(x + l2 - l1 > l1) -> 必存在
           即 (x > 2*l1 - l2)
-          左值 加 l2 - l1 - d1
+          左值 加 l2 - l1 - d1 - 1
         否则      -> 不存在
           左值 加 l2 - l1
-      (2)若(y + l2 - l1 > r1)   -> 由左值确定，同增同减
-          即(y > 2 * l1 - l2 + d1)
-          右值 加 l2 - l1 - d1
-        否则
-          右值 加 l2 - l1
-
-
+      (2)右值同样
 
  */

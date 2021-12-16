@@ -29,3 +29,5 @@ type BuildFlatOptions<T> = {
 };
 
 type idFn<T> = string | number | ((o: T) => boolean);
+
+type PosType = 1 | 2 | 3 | 4;

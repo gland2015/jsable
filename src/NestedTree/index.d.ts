@@ -31,3 +31,6 @@ type BuildFlatOptions<T> = {
 type idFn<T> = string | number | ((o: T) => boolean);
 
 type PosType = 1 | 2 | 3 | 4;
+
+type SetItem = string|((o, childs) => any);
+

@@ -6,7 +6,7 @@ type NewNode<T, S> = S | Array<S> | NestedTree<T, S> | NestedNode<any, any>;
  * 嵌套模型树
  *
  */
-export class NestedTree<T, S> {
+export class NestedTree<T = any, S = any> {
   constructor(list: Array<T>, options?: TreeOptions<T>) {
     this.core = new NestedCore<T, S>(list, options);
   }
@@ -140,12 +140,15 @@ export class NestedTree<T, S> {
     return this.core.list;
   }
 
-  public get(id) {
+  public get(id: idFn<T>) {
     return this.core.get(id);
   }
 
   public node(id) {
     const nodeData = this.core.get(id);
+    if (!nodeData) {
+      throw new Error("node is not exist:" + id);
+    }
     return new NestedNode(nodeData, this.core);
   }
 
@@ -179,6 +182,28 @@ export class NestedTree<T, S> {
     }
 
     return this;
+  }
+
+  public toItemTreeObj(setItem?: SetItem) {
+    return this.core.toItemTreeObj(setItem);
+  }
+
+  /**
+   * 移除节点
+   */
+  public remove(startLft: number, endRgt: number) {
+    return this.core.remove(startLft, endRgt);
+  }
+
+  /**
+   * 移除节点
+   */
+  public removeBy(id: idFn<T>) {
+    let item = this.get(id);
+    if (!item) {
+      return null;
+    }
+    return this.core.remove(this.core.getLft(item), this.core.getRgt(item));
   }
 }
 
@@ -218,6 +243,10 @@ class NestedNode<T, S> {
     });
 
     return list;
+  }
+
+  get(id: idFn<T>): T {
+    return this.core.get(id, this.values());
   }
 
   /**
@@ -280,6 +309,39 @@ class NestedNode<T, S> {
     }
 
     return this;
+  }
+
+  toItemTreeObj(setItem?: SetItem) {
+    return this.core.toItemTreeObj(setItem, this.values());
+  }
+
+  /**
+   * 移除节点
+   */
+  public remove(startLft: number, endRgt: number) {
+    if (startLft <= endRgt && startLft >= this.lft && endRgt <= this.rgt) {
+      return this.core.remove(startLft, endRgt);
+    } else {
+      throw new Error("over range");
+    }
+  }
+
+  /**
+   * 移除节点
+   */
+  public removeSelf() {
+    return this.core.remove(this.lft, this.rgt);
+  }
+
+  /**
+   * 移除节点
+   */
+  public removeBy(id: idFn<T>) {
+    let item = this.get(id);
+    if (!item) {
+      return null;
+    }
+    return this.core.remove(this.core.getLft(item), this.core.getRgt(item));
   }
 }
 
@@ -344,7 +406,7 @@ class NestedCore<T, S> {
     return this.list.length;
   }
 
-  public get(id: idFn<T>): T {
+  public get(id: idFn<T>, list = this.list): T {
     let result: T;
     let is;
     if (typeof id === "function") {
@@ -356,9 +418,9 @@ class NestedCore<T, S> {
       };
     }
 
-    const l = this.list.length;
+    const l = list.length;
     for (let i = 0; i < l; i++) {
-      const o = this.list[i];
+      const o = list[i];
       if (is(o)) {
         result = o;
         break;
@@ -546,12 +608,14 @@ class NestedCore<T, S> {
 
   public remove(minLeft: number, maxRight: number) {
     const newList = [];
+    const rList = [];
     let diff = maxRight - minLeft;
     this.forEach((o) => {
       let lft = this.getLft(o);
       let rgt = this.getRgt(o);
 
       if (lft >= minLeft && rgt <= maxRight) {
+        rList.push(o);
         return;
       }
       if (lft > minLeft) {
@@ -563,6 +627,8 @@ class NestedCore<T, S> {
       newList.push(o);
     });
     this.list = newList;
+
+    return rList;
   }
 
   public move(curNode: NestedNode<T, S>, moveNode: NestedNode<T, S>, position: PosType) {
@@ -658,6 +724,103 @@ class NestedCore<T, S> {
       return x >= l1 && y <= r1;
     }
   }
+
+  public toItemTreeObj(setItem: SetItem = "children", values = this.list) {
+    // 1、fn返回目标元素的子元素列表
+    // 2、每个子元素已包含其子
+    const that = this;
+    if (typeof setItem === "string") {
+      let name = setItem;
+      setItem = function (o, childs) {
+        o[name] = childs;
+        return o;
+      };
+    }
+
+    let list = values.concat().sort((a, b) => {
+      let lft = this.getLft(a);
+      let lft2 = this.getLft(b);
+      return lft - lft2;
+    });
+
+    let result = [];
+    findChild(result);
+
+    return result;
+
+    function findChild(arr, rgt = Number.POSITIVE_INFINITY, index = 0) {
+      let item = list[index];
+      if (item) {
+        let itemRgt = that.getRgt(item);
+        if (itemRgt <= rgt) {
+          index++;
+          let cList = [];
+          index = findChild(cList, itemRgt, index);
+
+          let bItem = (setItem as any)(item, cList);
+          arr.push(bItem);
+
+          return findChild(arr, rgt, index);
+        }
+      }
+      return index;
+    }
+  }
+
+  public toItemTreeObj_(setItem: SetItem = "children", values = this.list) {
+    if (typeof setItem === "string") {
+      let name = setItem;
+      setItem = function (o, childs) {
+        o[name] = childs;
+        return o;
+      };
+    }
+
+    let list = values.concat().sort((a, b) => {
+      let lft = this.getLft(a);
+      let lft2 = this.getLft(b);
+      return lft - lft2;
+    });
+
+    let result = [];
+    let stack = [];
+
+    for (let i = 0; i <= list.length; i++) {
+      let item = list[i];
+
+      let itemRgt = this.getRgt(item);
+      if (item && !stack.length) {
+        stack.push({
+          rgt: itemRgt,
+          item,
+          childs: [],
+        });
+        continue;
+      }
+
+      for (let j = stack.length - 1; j >= 0; j--) {
+        let data = stack[j];
+        if (!item || itemRgt > data.rgt) {
+          let bItem = setItem(data.item, data.childs);
+          if (j === 0) {
+            result.push(bItem);
+          } else {
+            stack[j - 1].childs.push(bItem);
+          }
+          stack.pop();
+        } else {
+          stack.push({
+            rgt: itemRgt,
+            item,
+            childs: [],
+          });
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
 }
 
 /**
@@ -734,4 +897,34 @@ class NestedCore<T, S> {
           左值 加 l2 - l1
       (2)右值同样
 
- */
+
+
+      
+      [1 4] [5 6] [7 8]
+      [2 3]
+      
+       let arr = list
+        .map((o) => ({
+          o,
+          lft,
+          rgt,
+        }))
+        .sort((a, b) => a.lft - b.lft);
+      
+      let result = [];
+      
+      let i = 0;
+      function fn(sList) {
+        let item = arr[i];
+        sList.push(item);
+      
+        if (item.lft) {
+        }
+      }
+      
+    
+      
+      
+
+      
+      */

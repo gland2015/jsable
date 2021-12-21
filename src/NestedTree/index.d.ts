@@ -16,7 +16,7 @@ type BuildItemOptions<T> = {
   startDepth?: number;
   startLeft?: number;
   setItem?: (o: T, lft: number, rgt: number, depth: number) => any;
-  children?: string & ((o: T) => Array<T>);
+  children?: string | ((o: T) => Array<T>);
 };
 
 type BuildFlatOptions<T> = {

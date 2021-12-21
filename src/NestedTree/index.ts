@@ -20,7 +20,7 @@ export class NestedTree<T = any, S = any> {
 
     let left = startLeft;
     itemTree.forEach(function (o) {
-      let right = buildNode(o, left, startDepth).right;
+      let right = buildNode(o, left, startDepth);
       left = right + 1;
     });
 
@@ -347,14 +347,16 @@ class NestedNode<T, S> {
 
 class NestedCore<T, S> {
   constructor(list: Array<T>, options?: TreeOptions<T>) {
+    this.list = list;
     this.options = options;
-    this.init(list, options);
+    this.init(options);
   }
 
-  private init(list: Array<T>, options?: TreeOptions<T>) {
+  private init(options?: TreeOptions<T>) {
     const id = options?.id || "id";
     const lft = options?.lft || "lft";
     const rgt = options?.rgt || "rgt";
+    const depth = options?.depth || "depth";
 
     if (typeof id === "function") {
       this.getId = id;
@@ -385,6 +387,18 @@ class NestedCore<T, S> {
       };
       this.setRgt = function (o, n) {
         o[rgt] = n;
+      };
+    }
+
+    if (typeof depth === "object") {
+      this.getDpt = depth.get;
+      this.setDpt = depth.set;
+    } else {
+      this.getDpt = function (o) {
+        return o[depth];
+      };
+      this.setDpt = function (o, n) {
+        o[depth] = n;
       };
     }
   }

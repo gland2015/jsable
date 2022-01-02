@@ -9,18 +9,25 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
 
     let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
 
+    // 1
     let id = testList2.randomId();
     let item = nestedTree.get(id);
     let testItem = testList2.get(id);
-
     expect(util.getUserId(item)).toEqual(testItem.userId);
 
+    // 2
     id = testList2.randomId();
     item = nestedTree.get(function (o) {
       return util.getId(o) === id;
     });
     testItem = testList2.get(id);
+    expect(util.getUserId(item)).toEqual(testItem.userId);
 
+    // 3
+    nestedTree.setIndex();
+    id = testList2.randomId();
+    item = nestedTree.get(id);
+    testItem = testList2.get(id);
     expect(util.getUserId(item)).toEqual(testItem.userId);
   });
 
@@ -86,13 +93,12 @@ function init() {
     ],
     [
       {
-        id: "_id",
+        id: "id",
         lft: "$lft",
         rgt: "$rgt",
         depth: "$depth",
         startDepth: 2,
         startLeft: 3,
-        setItem: (o, lft, rgt, depth) => ({ _id: o.id, $lft: lft, $rgt: rgt, $depth: depth, path: o.path, order: o.order, userId: o.userId }),
         children: "children",
       },
       {
@@ -100,7 +106,7 @@ function init() {
           return o.userId;
         },
         getId: function (o) {
-          return o._id;
+          return o.id;
         },
       },
     ],

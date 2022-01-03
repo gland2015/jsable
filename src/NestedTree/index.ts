@@ -202,7 +202,7 @@ export class NestedTree<T = any, S = any> {
     return this.core.get(id);
   }
 
-  public node(id) {
+  public node(id): NestedNode<T, S> {
     const nodeData = this.core.get(id);
     if (!nodeData) {
       throw new Error("node is not exist:" + id);
@@ -725,7 +725,10 @@ class NestedCore<T, S> {
   public add(list: Array<T>, tarNode: NestedNode<T, S>, position: PosType) {
     if (!list.length) return this;
     if (this.list.length) {
-      let curAdd: number, newAdd: number, newDptAdd: number;
+      // 当前列表新增左值右值
+      let curAdd: number;
+      // 新列表新增左右值，和深度
+      let newAdd: number, newDptAdd: number;
       let targetLft;
       if (tarNode) {
         const newMinLftItem = this.minLftItem(list);
@@ -738,11 +741,11 @@ class NestedCore<T, S> {
 
         if (position === 1 || position === 3) {
           targetLft = position === 1 ? tarNode.lft : tarNode.lft + 1;
-          const tarDpt = position === 1 ? tarNode.dpt : tarNode.dpt - 1;
+          const tarDpt = position === 1 ? tarNode.dpt : tarNode.dpt + 1;
           newDptAdd = tarDpt - newRgtDpt;
         } else {
-          targetLft = position === 2 ? tarNode.rgt : tarNode.rgt - 1;
-          const tarDpt = position === 2 ? tarNode.dpt : tarNode.dpt - 1;
+          targetLft = position === 2 ? tarNode.rgt + 1 : tarNode.rgt;
+          const tarDpt = position === 2 ? tarNode.dpt : tarNode.dpt + 1;
           newDptAdd = tarDpt - newLftDpt;
         }
         curAdd = newMaxRgt - newMinLft + 1;
@@ -806,14 +809,14 @@ class NestedCore<T, S> {
           let rgt = this.getRgt(o) + newAdd;
           this.setLft(o, lft);
           this.setRgt(o, rgt);
-        });
+        }, list);
       }
 
       if (newDptAdd) {
         this.forEach((o) => {
           let dpt = this.getDpt(o) + newDptAdd;
           this.setDpt(o, dpt);
-        });
+        }, list);
       }
 
       this.list.push(...list);
@@ -913,6 +916,13 @@ class NestedCore<T, S> {
     }
   }
 
+  /**
+   * 参数:
+   *  l1 - 移动节点的左值
+   *  r1 - 移动节点的右值
+   *  l2 - 占位移动后的左值
+   *  dptDiff - 两边的深度差
+   */
   public move_(l1: number, r1: number, l2: number, dptDiff: number) {
     if (l1 <= l2 && l2 <= r1) {
       throw new Error("can not move to self!");

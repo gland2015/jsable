@@ -1,6 +1,9 @@
 import "./index.d";
+import { cloneDeep } from "../cloneDeep";
 
 type NewNode<T, S> = S | T | Array<T> | Array<S> | NestedTree<T, S> | NestedNode<any, any>;
+
+// clone, check self
 
 /**
  * 嵌套模型树
@@ -155,6 +158,9 @@ export class NestedTree<T = any, S = any> {
     const list = NestedTree.buildListByItem<T, S>(itemTree, options);
     const tree = new NestedTree(list, options);
     tree.core.from = "item";
+    const { startLeft = 1, startDepth = 1 } = options || {};
+    tree.core["$minLeft"] = startLeft;
+    tree.core["$minDpt"] = startDepth;
     return tree;
   }
 
@@ -173,6 +179,9 @@ export class NestedTree<T = any, S = any> {
     const list = NestedTree.buildListByFlat<T, S>(flatTree, options);
     const tree = new NestedTree(list, options);
     tree.core.from = "flat";
+    const { startLeft = 1, startDepth = 1 } = options || {};
+    tree.core["$minLeft"] = startLeft;
+    tree.core["$minDpt"] = startDepth;
     return tree;
   }
 
@@ -210,6 +219,17 @@ export class NestedTree<T = any, S = any> {
     return new NestedNode(nodeData, this.core);
   }
 
+  /**
+   * 检查数数据的正确性, 不正确则报错
+   *  1、起始
+   *  2、父
+   *  3、深度
+   *  4、连贯
+   */
+  public check() {
+    return this.core.check();
+  }
+
   public isChildOf(node1: NestedNode<T, S>, node2: NestedNode<T, S>, type?: RelationType) {
     return this.core.isChildOf(node1.nodeData, node2.nodeData, type);
   }
@@ -235,8 +255,8 @@ export class NestedTree<T = any, S = any> {
       // 移动节点
       this.core.move(null, item, position);
     } else {
-      const newList = this.core.buildNewNode(item, this.core.rootPid);
-      this.core.add(newList, null, position);
+      const listInfo = this.core.buildNewNode(item, this.core.rootPid);
+      this.core.add(listInfo, null, position);
     }
 
     return this;
@@ -251,8 +271,8 @@ export class NestedTree<T = any, S = any> {
       // 移动节点
       this.core.move(null, item, position);
     } else {
-      const newList = this.core.buildNewNode(item, this.core.rootPid);
-      this.core.add(newList, null, position);
+      const listInfo = this.core.buildNewNode(item, this.core.rootPid);
+      this.core.add(listInfo, null, position);
     }
 
     return this;
@@ -278,6 +298,13 @@ export class NestedTree<T = any, S = any> {
       return null;
     }
     return this.core.remove(this.core.getLft(item), this.core.getRgt(item));
+  }
+
+  public clone() {
+    let newTree = Object.create(Object.getPrototypeOf(this));
+    Object.assign(newTree, this);
+    newTree.core = newTree.core.clone();
+    return newTree as NestedTree<T, S>;
   }
 }
 
@@ -345,8 +372,8 @@ class NestedNode<T, S> {
       this.core.move(this, item, position);
     } else {
       // 追加节点
-      const newList = this.core.buildNewNode(item, this.id);
-      this.core.add(newList, this, position);
+      const listInfo = this.core.buildNewNode(item, this.id);
+      this.core.add(listInfo, this, position);
     }
 
     return this;
@@ -362,8 +389,8 @@ class NestedNode<T, S> {
       this.core.move(this, item, position);
     } else {
       // 添加节点
-      const newList = this.core.buildNewNode(item, this.id);
-      this.core.add(newList, null, position);
+      const listInfo = this.core.buildNewNode(item, this.id);
+      this.core.add(listInfo, this, position);
     }
 
     return this;
@@ -376,8 +403,8 @@ class NestedNode<T, S> {
       this.core.move(this, item, position);
     } else {
       // 添加节点
-      const newList = this.core.buildNewNode(item, this.parentId);
-      this.core.add(newList, null, position);
+      const listInfo = this.core.buildNewNode(item, this.parentId);
+      this.core.add(listInfo, this, position);
     }
 
     return this;
@@ -390,8 +417,8 @@ class NestedNode<T, S> {
       this.core.move(this, item, position);
     } else {
       // 添加节点
-      const newList = this.core.buildNewNode(item, this.parentId);
-      this.core.add(newList, null, position);
+      const listInfo = this.core.buildNewNode(item, this.parentId);
+      this.core.add(listInfo, this, position);
     }
 
     return this;
@@ -475,6 +502,159 @@ class NestedCore<T, S> {
   public setRgt: (o: T, n: number) => any;
   public getDpt: (o: T) => number;
   public setDpt: (o: T, n: number) => any;
+
+  private $minLeft: number = null;
+  private $minDpt: number = null;
+
+  get minLft() {
+    if (this.$minLeft !== null) {
+      return this.$minLeft;
+    }
+    let item = this.minLftItem();
+    if (item) {
+      this.$minLeft = this.getLft(item);
+      this.$minDpt = this.getDpt(item);
+      return this.$minLeft;
+    } else {
+      return null;
+    }
+  }
+
+  get maxRgt() {
+    const size = this.size();
+    return size === 0 ? null : this.minLft + size * 2 - 1;
+  }
+
+  get minDpt() {
+    if (this.$minDpt !== null) {
+      return this.$minDpt;
+    }
+    let item = this.minLftItem();
+    if (item) {
+      this.$minLeft = this.getLft(item);
+      this.$minDpt = this.getDpt(item);
+      return this.$minDpt;
+    } else {
+      return null;
+    }
+  }
+
+  public clone() {
+    let newCore = Object.create(Object.getPrototypeOf(this));
+    Object.assign(newCore, this);
+
+    newCore.list = cloneDeep(this.list);
+    if (this.options) {
+      newCore.options = cloneDeep(this.options);
+    }
+
+    if (this.map) {
+      newCore.setIndex();
+    }
+
+    return newCore as NestedCore<T, S>;
+  }
+
+  public check() {
+    const options = this.options || {};
+    let startDepth = null;
+    let startLeft = null;
+
+    // 检查起始
+    if (this.from) {
+      startDepth = selectValue("number", options["startDepth"], 1);
+      startLeft = selectValue("number", options["startLeft"], 1);
+      if (this.$minDpt !== null && startDepth !== this.$minDpt) {
+        throw new Error("minDpt and startDepth not same: startDepth: " + startDepth + ", minDpt: " + this.$minDpt);
+      }
+      if (this.$minLeft !== null && startLeft !== this.$minLeft) {
+        throw new Error("minLeft and startLeft not same: startLeft: " + startLeft + ", minLeft: " + this.$minLeft);
+      }
+    } else {
+      if (this.$minDpt !== null) {
+        startDepth = this.$minDpt;
+      }
+      if (this.$minLeft !== null) {
+        startLeft = this.$minLeft;
+      }
+    }
+
+    if (!this.list.length) {
+      return;
+    }
+
+    let list = this.toItemTreeObj((o, childs) => {
+      return {
+        item: o,
+        id: this.getId(o),
+        lft: this.getLft(o),
+        rgt: this.getRgt(o),
+        pid: this.getPid(o),
+        dpt: this.getDpt(o),
+        childs,
+      };
+    });
+
+    // 检查起始
+    let firstItem = list[0];
+    if (startDepth !== null) {
+      let dpt = firstItem.dpt;
+      if (startDepth !== dpt) {
+        throw new Error("startDepth is not right: " + startDepth + " - " + dpt);
+      }
+    } else {
+      startDepth = firstItem.dpt;
+    }
+
+    if (startLeft !== null) {
+      let lft = firstItem.lft;
+      if (lft !== startLeft) {
+        throw new Error("startLeft is not right: " + startLeft + " - " + lft);
+      }
+    } else {
+      startLeft = firstItem.lft;
+    }
+
+    iterat(list, firstItem.pid, startDepth, startLeft);
+
+    function iterat(list, pid, dpt, value) {
+      for (let i = 0; i < list.length; i++) {
+        let o = list[i];
+
+        // 检查父
+        if (o.pid !== pid) {
+          throw new Error(o.id + " parentId is not right: " + o.pid + " - " + pid);
+        }
+        // 检查深度
+        if (o.dpt !== dpt) {
+          throw new Error(o.id + " depth is not right: " + o.dpt + " - " + dpt);
+        }
+
+        // 检查左连贯
+        if (o.lft !== value) {
+          throw new Error(o.id + " left value is not right: " + o.lft + " - " + value);
+        }
+
+        if (o.childs.length) {
+          value = iterat(o.childs, o.id, dpt + 1, value + 1) + 1;
+        } else {
+          value = value + 1;
+        }
+
+        // 检查右连贯
+        let rgt = value;
+        if (rgt !== o.rgt) {
+          throw new Error(o.id + " right is not right: " + o.rgt + " - " + rgt);
+        }
+
+        if (i !== list.length - 1) {
+          value = value + 1;
+        }
+      }
+      // 返回列表最后大的右值，空列表返回原值
+      return value;
+    }
+  }
 
   public size(): number {
     return this.list.length;
@@ -632,26 +812,42 @@ class NestedCore<T, S> {
     }
   }
 
-  public buildNewNode(item: NewNode<T, S>, parentId: any): Array<T> {
+  public buildNewNode(item: NewNode<T, S>, parentId: any) {
+    const result: ListInfo<T> = {
+      list: [],
+      minLeft: null,
+      minDpt: null,
+    };
+
     if (!item) {
-      return [];
+      return result;
     }
+
     if (item instanceof NestedTree) {
-      let oldPid = item["core"].rootPid;
-      if (oldPid !== parentId) {
-        this.forEach((o) => {
-          let pid = this.getPid(o);
-          if (pid === oldPid) {
-            this.setPid(o, parentId);
-          }
-        }, item.values());
+      let values = item.values();
+      if (values.length) {
+        let oldPid = item["core"].rootPid;
+        if (oldPid !== parentId) {
+          this.forEach((o) => {
+            let pid = this.getPid(o);
+            if (pid === oldPid) {
+              this.setPid(o, parentId);
+            }
+          }, values);
+        }
+        result.list = values;
+        result.minLeft = item["core"]["$minLeft"];
+        result.minDpt = item["core"]["$minDpt"];
       }
-      return item.values();
+      return result;
     }
 
     if (item instanceof NestedNode) {
       this.setPid(item.nodeData, parentId);
-      return item.values();
+      result.list = item.values();
+      result.minLeft = item.lft;
+      result.minDpt = item.dpt;
+      return result;
     }
 
     if (!Array.isArray(item)) {
@@ -659,26 +855,37 @@ class NestedCore<T, S> {
     }
 
     if (this.from === "flat") {
-      return NestedTree.fromFlat<T, S>(item as Array<S>, { ...this.options, rootPid: parentId }).values();
+      let tree = NestedTree.fromFlat<T, S>(item as Array<S>, { ...this.options, rootPid: parentId });
+      result.list = tree.values();
+      result.minLeft = tree["core"]["$minLeft"];
+      result.minDpt = tree["core"]["$minDpt"];
+      return result;
     }
+
     if (this.from === "item") {
-      return NestedTree.fromItem<T, S>(item as Array<S>, { ...this.options, rootPid: parentId }).values();
+      let tree = NestedTree.fromItem<T, S>(item as Array<S>, { ...this.options, rootPid: parentId });
+      result.list = tree.values();
+      result.minLeft = tree["core"]["$minLeft"];
+      result.minDpt = tree["core"]["$minDpt"];
+      return result;
     }
 
     // 查找pid
-    let rgtItem = this.maxRgtItem(item as Array<T>);
-    let rPid = this.getPid(rgtItem);
-    if (rPid !== parentId) {
+    let lftItem = this.minLftItem(item as Array<T>);
+    let lPid = this.getPid(lftItem);
+    if (lPid !== parentId) {
       // 替换pid
       this.forEach((o) => {
         let pid = this.getPid(o);
-        if (pid === rPid) {
+        if (pid === lPid) {
           this.setPid(o, parentId);
         }
       }, item as Array<T>);
     }
-
-    return item as Array<T>;
+    result.list = item as Array<T>;
+    result.minLeft = this.getLft(lftItem);
+    result.minDpt = this.getDpt(lftItem);
+    return result;
   }
 
   /**
@@ -722,66 +929,60 @@ class NestedCore<T, S> {
    *  3 - tarNode的最前子节点
    *  4 - tarNode的最后子节点
    */
-  public add(list: Array<T>, tarNode: NestedNode<T, S>, position: PosType) {
+  public add(listInfo: ListInfo<T>, tarNode: NestedNode<T, S>, position: PosType) {
+    const list = listInfo.list;
+
     if (!list.length) return this;
+
+    // 新列表新增左右值，和深度
+    let newAdd: number, newDptAdd: number;
+
+    let newMinLft = listInfo.minLeft;
+    let newDpt = listInfo.minDpt;
+    if (typeof newMinLft !== "number" || typeof newDpt !== "number") {
+      const newMinLftItem = this.minLftItem(list);
+      newMinLft = this.getLft(newMinLftItem);
+      newDpt = this.getDpt(newMinLftItem);
+    }
+
     if (this.list.length) {
       // 当前列表新增左值右值
       let curAdd: number;
-      // 新列表新增左右值，和深度
-      let newAdd: number, newDptAdd: number;
+
       let targetLft;
+      let newMaxRgt = newMinLft + list.length * 2 - 1;
+
       if (tarNode) {
-        const newMinLftItem = this.minLftItem(list);
-        const newMinLft = this.getLft(newMinLftItem);
-        const newLftDpt = this.getDpt(newMinLftItem);
-
-        const newMaxRgtItem = this.maxRgtItem(list);
-        const newMaxRgt = this.getRgt(newMaxRgtItem);
-        const newRgtDpt = this.getDpt(newMaxRgtItem);
-
         if (position === 1 || position === 3) {
           targetLft = position === 1 ? tarNode.lft : tarNode.lft + 1;
           const tarDpt = position === 1 ? tarNode.dpt : tarNode.dpt + 1;
-          newDptAdd = tarDpt - newRgtDpt;
+          newDptAdd = tarDpt - newDpt;
         } else {
           targetLft = position === 2 ? tarNode.rgt + 1 : tarNode.rgt;
           const tarDpt = position === 2 ? tarNode.dpt : tarNode.dpt + 1;
-          newDptAdd = tarDpt - newLftDpt;
+          newDptAdd = tarDpt - newDpt;
         }
         curAdd = newMaxRgt - newMinLft + 1;
         newAdd = targetLft - newMinLft;
       } else {
         if (position === 1) {
           // unshift
-          const minLftItem = this.minLftItem();
-          const minLft = this.getLft(minLftItem);
-          const minLftDpt = this.getDpt(minLftItem);
-
-          const newMaxRgtItem = this.maxRgtItem(list);
-          const newMaxRgt = this.getRgt(newMaxRgtItem);
-          const newMinRgtDpt = this.getDpt(newMaxRgtItem);
-
-          const newMinLftItem = this.minLftItem(list);
-          const newMinLft = this.getLft(newMinLftItem);
+          const minLft = this.minLft;
+          const minLftDpt = this.minDpt;
 
           targetLft = minLft;
 
           curAdd = newMaxRgt + 1 - newMinLft;
           newAdd = minLft - newMinLft;
-          newDptAdd = minLftDpt - newMinRgtDpt;
+          newDptAdd = minLftDpt - newDpt;
         } else {
           // push
-          const lftItem = this.minLftItem(list);
-          const newLft = this.getLft(lftItem);
-          const newDpt = this.getDpt(lftItem);
-
-          const maxRgtItem = this.maxRgtItem();
-          const maxRgt = this.getRgt(maxRgtItem);
-          const maxRgtDpt = this.getDpt(maxRgtItem);
+          const maxRgt = this.maxRgt;
+          const maxRgtDpt = this.minDpt;
 
           targetLft = maxRgt + 1;
 
-          newAdd = maxRgt + 1 - newLft;
+          newAdd = maxRgt + 1 - newMinLft;
           newDptAdd = maxRgtDpt - newDpt;
         }
       }
@@ -802,26 +1003,40 @@ class NestedCore<T, S> {
           }
         });
       }
-
-      if (newAdd) {
-        this.forEach((o) => {
-          let lft = this.getLft(o) + newAdd;
-          let rgt = this.getRgt(o) + newAdd;
-          this.setLft(o, lft);
-          this.setRgt(o, rgt);
-        }, list);
-      }
-
-      if (newDptAdd) {
-        this.forEach((o) => {
-          let dpt = this.getDpt(o) + newDptAdd;
-          this.setDpt(o, dpt);
-        }, list);
-      }
-
-      this.list.push(...list);
     } else {
-      this.list = list;
+      const { startDepth = 1, startLeft = 1 } = (this.options as any) || {};
+      let minLft = selectValue("number", this.$minLeft, this.from ? startLeft : null);
+      let minDpt = selectValue("number", this.$minDpt, this.from ? startDepth : null);
+
+      if (typeof minLft !== "number") {
+        this.$minLeft = newMinLft;
+      } else {
+        this.$minLeft = minLft;
+        newAdd = minLft - newMinLft;
+      }
+
+      if (typeof minDpt !== "number") {
+        this.$minDpt = newDpt;
+      } else {
+        this.$minDpt = minDpt;
+        newDptAdd = minDpt - newDpt;
+      }
+    }
+
+    if (newAdd) {
+      this.forEach((o) => {
+        let lft = this.getLft(o) + newAdd;
+        let rgt = this.getRgt(o) + newAdd;
+        this.setLft(o, lft);
+        this.setRgt(o, rgt);
+      }, list);
+    }
+
+    if (newDptAdd) {
+      this.forEach((o) => {
+        let dpt = this.getDpt(o) + newDptAdd;
+        this.setDpt(o, dpt);
+      }, list);
     }
 
     if (this.map) {
@@ -830,6 +1045,8 @@ class NestedCore<T, S> {
         this.map[id] = o;
       }, list);
     }
+
+    this.list.push(...list);
 
     return this;
   }
@@ -888,16 +1105,14 @@ class NestedCore<T, S> {
       }
     } else {
       if (position === 1) {
-        const minLftItem = this.minLftItem();
-        const minLft = this.getLft(minLftItem);
-        const minLftDpt = this.getDpt(minLftItem);
+        const minLft = this.minLft;
+        const minLftDpt = this.minDpt;
 
         tarLft = minLft;
         dptAdd = minLftDpt - moveNode.dpt;
       } else {
-        const maxRgtItem = this.maxRgtItem();
-        const maxRgt = this.getRgt(maxRgtItem);
-        const maxRgtDpt = this.getDpt(maxRgtItem);
+        const maxRgt = this.maxRgt;
+        const maxRgtDpt = this.minDpt;
 
         tarLft = maxRgt + 1;
         dptAdd = maxRgtDpt - moveNode.dpt;
@@ -1008,7 +1223,6 @@ class NestedCore<T, S> {
           index++;
           let cList = [];
           index = findChild(cList, itemRgt, index);
-
           let bItem = (setItem as any)(item, cList);
           arr.push(bItem);
 
@@ -1073,6 +1287,17 @@ class NestedCore<T, S> {
 
     return result;
   }
+}
+
+function selectValue(type: "string" | "number" | "object", ...vlist) {
+  let value = null;
+  for (let i = 0; i < vlist.length; i++) {
+    if (typeof vlist[i] === type) {
+      value = vlist[i];
+      break;
+    }
+  }
+  return value;
 }
 
 function buildOptions(options) {

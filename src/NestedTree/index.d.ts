@@ -36,3 +36,9 @@ type PosType = 1 | 2 | 3 | 4;
 type SetItem = string | ((o, childs) => any);
 
 type RelationType = "default" | "direct" | "self-direct" | "no-self" | "no-self-no-direct";
+
+type ListInfo<T> = {
+  list: Array<T>;
+  minLeft: number;
+  minDpt: number;
+}

@@ -4,6 +4,7 @@ const { TestList, eachTable } = init();
 
 const InitList = new TestList();
 const testIds = InitList.idList;
+const moveTarIds = [1, 49, 63, , 46, 34, 43, 44];
 
 describe.each(eachTable)("NestedTree", (treeOp, util) => {
   it("toItemTreeObj", () => {
@@ -14,7 +15,7 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
 
     nestedTree.check();
 
-    let treeList = nestedTree.toItemTreeObj(util.toItemObj);
+    let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
     expect(testList2.list).toEqual(treeList);
   });
 
@@ -80,8 +81,32 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
     nestedTree.push(JSON.parse(JSON.stringify(data)));
     testList2.push(null, data);
 
-    let treeList = nestedTree.toItemTreeObj(util.toItemObj);
+    nestedTree.check();
+
+    let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
     expect(testList2.list).toEqual(treeList);
+  });
+
+  it("push move", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    [testList1.lastId].forEach(function (idTar) {
+      const { parentIds, otherIds } = testList1.getRelIds(idTar, 2);
+
+      otherIds.forEach(function (idMove) {
+        const testList2 = new TestList();
+        let nestedTree = nestedTree1.clone();
+
+        nestedTree.push(nestedTree.node(idMove));
+        nestedTree.check();
+
+        testList2.moveTo(idMove, idTar, 2);
+
+        let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+        expect(testList2.list).toEqual(treeList);
+      });
+    });
   });
 
   it("unshift", () => {
@@ -118,8 +143,32 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
     nestedTree.unshift(JSON.parse(JSON.stringify(data)));
     testList2.unshift(null, data);
 
-    let treeList = nestedTree.toItemTreeObj(util.toItemObj);
+    nestedTree.check();
+
+    let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
     expect(testList2.list).toEqual(treeList);
+  });
+
+  it("unshift move", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    [testList1.firstId].forEach(function (idTar) {
+      const { parentIds, otherIds } = testList1.getRelIds(idTar, 1);
+
+      otherIds.forEach(function (idMove) {
+        const testList2 = new TestList();
+        let nestedTree = nestedTree1.clone();
+
+        nestedTree.unshift(nestedTree.node(idMove));
+        nestedTree.check();
+
+        testList2.moveTo(idMove, idTar, 1);
+
+        let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+        expect(testList2.list).toEqual(treeList);
+      });
+    });
   });
 });
 
@@ -160,8 +209,39 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
       nestedTree.node(id).push(JSON.parse(JSON.stringify(data)));
       testList2.push(id, data);
 
-      let treeList = nestedTree.toItemTreeObj(util.toItemObj);
+      nestedTree.check();
+
+      let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
       expect(testList2.list).toEqual(treeList);
+    });
+  });
+
+  it("push move", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    moveTarIds.forEach(function (idTar) {
+      const { parentIds, otherIds } = testList1.getRelIds(idTar, 4);
+
+      otherIds.forEach(function (idMove) {
+        const testList2 = new TestList();
+        let nestedTree = nestedTree1.clone();
+
+        nestedTree.node(idTar).push(nestedTree.node(idMove));
+        nestedTree.check();
+
+        testList2.moveTo(idMove, idTar, 4);
+
+        let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+        expect(testList2.list).toEqual(treeList);
+      });
+
+      parentIds.forEach(function (idMove) {
+        let nestedTree = nestedTree1.clone();
+        expect(() => {
+          nestedTree.node(idTar).push(nestedTree.node(idMove));
+        }).toThrowError();
+      });
     });
   });
 
@@ -201,12 +281,187 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
       nestedTree.node(id).unshift(JSON.parse(JSON.stringify(data)));
       testList2.unshift(id, data);
 
-      let treeList = nestedTree.toItemTreeObj(util.toItemObj);
+      nestedTree.check();
+
+      let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
       expect(testList2.list).toEqual(treeList);
     });
   });
 
-  
+  it("unshift move", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    moveTarIds.forEach(function (idTar) {
+      const { parentIds, otherIds } = testList1.getRelIds(idTar, 3);
+
+      otherIds.forEach(function (idMove) {
+        const testList2 = new TestList();
+        let nestedTree = nestedTree1.clone();
+
+        nestedTree.node(idTar).unshift(nestedTree.node(idMove));
+        nestedTree.check();
+
+        testList2.moveTo(idMove, idTar, 3);
+
+        let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+        expect(testList2.list).toEqual(treeList);
+      });
+
+      parentIds.forEach(function (idMove) {
+        let nestedTree = nestedTree1.clone();
+        expect(() => {
+          nestedTree.node(idTar).unshift(nestedTree.node(idMove));
+        }).toThrowError();
+      });
+    });
+  });
+
+  it("link", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    testIds.forEach(function (id) {
+      const testList2 = new TestList();
+      let nestedTree = nestedTree1.clone();
+
+      let tarData = testList2.get(id);
+      let data = [
+        {
+          id: 1001,
+          path: tarData.path.concat(),
+          order: 1,
+          userId: 1001,
+          children: [
+            {
+              id: 1002,
+              path: tarData.path.concat(1001),
+              order: 1,
+              userId: 1002,
+              children: [],
+            },
+          ],
+        },
+        {
+          id: 1003,
+          path: tarData.path.concat(),
+          order: 2,
+          userId: 1003,
+          children: [],
+        },
+      ];
+      nestedTree.node(id).link(JSON.parse(JSON.stringify(data)));
+      testList2.link(id, data);
+
+      nestedTree.check();
+
+      let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+      expect(testList2.list).toEqual(treeList);
+    });
+  });
+
+  it("link move", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    moveTarIds.forEach(function (idTar) {
+      const { parentIds, otherIds } = testList1.getRelIds(idTar, 2);
+
+      otherIds.forEach(function (idMove) {
+        const testList2 = new TestList();
+        let nestedTree = nestedTree1.clone();
+
+        nestedTree.node(idTar).link(nestedTree.node(idMove));
+        nestedTree.check();
+
+        testList2.moveTo(idMove, idTar, 2);
+
+        let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+
+        expect(testList2.list).toEqual(treeList);
+      });
+
+      parentIds.forEach(function (idMove) {
+        let nestedTree = nestedTree1.clone();
+        expect(() => {
+          nestedTree.node(idTar).link(nestedTree.node(idMove));
+        }).toThrowError();
+      });
+    });
+  });
+
+  it("linkBefore", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    testIds.forEach(function (id) {
+      const testList2 = new TestList();
+      let nestedTree = nestedTree1.clone();
+
+      let tarData = testList2.get(id);
+      let data = [
+        {
+          id: 1001,
+          path: tarData.path.concat(),
+          order: 1,
+          userId: 1001,
+          children: [
+            {
+              id: 1002,
+              path: tarData.path.concat(1001),
+              order: 1,
+              userId: 1002,
+              children: [],
+            },
+          ],
+        },
+        {
+          id: 1003,
+          path: tarData.path.concat(),
+          order: 2,
+          userId: 1003,
+          children: [],
+        },
+      ];
+      nestedTree.node(id).linkBefore(JSON.parse(JSON.stringify(data)));
+      testList2.linkBefore(id, data);
+
+      nestedTree.check();
+
+      let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+      expect(testList2.list).toEqual(treeList);
+    });
+  });
+
+  it("linkBefore move", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    moveTarIds.forEach(function (idTar) {
+      const { parentIds, otherIds } = testList1.getRelIds(idTar, 1);
+
+      otherIds.forEach(function (idMove) {
+        const testList2 = new TestList();
+        let nestedTree = nestedTree1.clone();
+
+        nestedTree.node(idTar).linkBefore(nestedTree.node(idMove));
+        nestedTree.check();
+
+        testList2.moveTo(idMove, idTar, 1);
+
+        let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+
+        expect(testList2.list).toEqual(treeList);
+      });
+
+      parentIds.forEach(function (idMove) {
+        let nestedTree = nestedTree1.clone();
+        expect(() => {
+          nestedTree.node(idTar).linkBefore(nestedTree.node(idMove));
+        }).toThrowError();
+      });
+    });
+  });
 });
 
 function init() {
@@ -227,8 +482,40 @@ function init() {
       return path.every((o, i) => o === path2[i]);
     }
 
-    move(id, id2) {
-      this.idMap[id].children.push(this.idMap[id2]);
+    moveTo(id, id2, pos) {
+      const itemIn = this.getInList(id);
+      const item2In = this.getInList(id2);
+
+      let newPath;
+      itemIn.list[itemIn.index] = null;
+      if (pos === 1) {
+        item2In.list.splice(item2In.index, 0, itemIn.item);
+        newPath = item2In.item.path.concat();
+      } else if (pos === 2) {
+        item2In.list.splice(item2In.index + 1, 0, itemIn.item);
+        newPath = item2In.item.path.concat();
+      } else if (pos === 3) {
+        item2In.item.children.unshift(itemIn.item);
+        newPath = item2In.item.path.concat(item2In.item.id);
+      } else {
+        // 4
+        item2In.item.children.push(itemIn.item);
+        newPath = item2In.item.path.concat(item2In.item.id);
+      }
+
+      itemIn.list.splice(itemIn.list.indexOf(null), 1);
+
+      rePath(itemIn.item, newPath);
+
+      function rePath(item, path) {
+        item.path = path;
+        if (item.children.length) {
+          let nextPath = path.concat(item.id);
+          for (let i = 0; i < item.children.length; i++) {
+            rePath(item.children[i], nextPath);
+          }
+        }
+      }
     }
 
     push(id, list) {
@@ -237,6 +524,7 @@ function init() {
       } else {
         this.list.push(...list);
       }
+      this.addMap(list);
     }
 
     unshift(id, list) {
@@ -244,6 +532,30 @@ function init() {
         this.idMap[id].children.unshift(...list);
       } else {
         this.list.unshift(...list);
+      }
+      this.addMap(list);
+    }
+
+    link(id, data) {
+      const { list, index } = this.getInList(id);
+      list.splice(index + 1, 0, ...data);
+      this.addMap(list);
+    }
+
+    linkBefore(id, data) {
+      const { list, index } = this.getInList(id);
+      list.splice(index, 0, ...data);
+      this.addMap(list);
+    }
+
+    addMap(list) {
+      for (let i = 0; i < list.length; i++) {
+        let item = list[i];
+        this.idList.push(item.id);
+        this.idMap[item.id] = item;
+        if (item.children && item.children.length) {
+          this.addMap(item.children);
+        }
       }
     }
 
@@ -266,8 +578,52 @@ function init() {
       return ids[i];
     }
 
+    getRelIds(id, pos?) {
+      let item = this.get(id);
+      let parentIds;
+
+      if (pos === 1 || pos === 2) {
+        parentIds = item.path.concat();
+      } else {
+        parentIds = item.path.concat(id);
+      }
+
+      let otherIds = this.idList.filter((d) => parentIds.indexOf(d) === -1);
+
+      return {
+        parentIds,
+        otherIds,
+      };
+    }
+
     get(id) {
-      return this.idMap[id];
+      let item = this.idMap[id];
+      if (!item) {
+        throw new Error("not find :" + id);
+      }
+      return item;
+    }
+
+    getInList(id) {
+      let item = this.idMap[id];
+
+      let itemInList;
+      let itemPid = item.path[item.path.length - 1];
+      if (itemPid) {
+        itemInList = this.get(itemPid).children;
+      } else {
+        itemInList = this.list;
+      }
+      let index = itemInList.indexOf(item);
+      if (index === -1) {
+        throw new Error("not in list: " + id);
+      }
+
+      return {
+        list: itemInList,
+        index,
+        item,
+      };
     }
 
     createList(cNum, parent = []) {
@@ -306,19 +662,18 @@ function init() {
           return o.id;
         },
         toItemObj: function (o, childs) {
-          let l = o.path.length;
-
-          if (o.depth - 1 !== l) {
+          let path = this.get(o.id).path;
+          if (o.depth - 1 !== path.length) {
             throw new Error("depth error");
           }
 
-          if (o.parentId !== (o.path[l - 1] || null)) {
+          if (o.parentId !== (path[path.length - 1] || null)) {
             throw new Error("error parentId");
           }
 
           return {
             id: o.id,
-            path: o.path,
+            path: path,
             order: o.order,
             userId: o.userId,
             children: childs,
@@ -345,18 +700,18 @@ function init() {
           return o.id;
         },
         toItemObj: function (o, childs) {
-          let l = o.path.length;
-          if (o.$depth - 2 !== l) {
+          let path = this.get(o.id).path;
+          if (o.$depth - 2 !== path.length) {
             throw new Error("depth error");
           }
 
-          if (o.$parentId !== (o.path[l - 1] || null)) {
+          if (o.$parentId !== (path[path.length - 1] || null)) {
             throw new Error("error parentId");
           }
 
           return {
             id: o.id,
-            path: o.path,
+            path: path,
             order: o.order,
             userId: o.userId,
             children: childs,
@@ -399,18 +754,18 @@ function init() {
           return o.doc.id;
         },
         toItemObj: function (o, childs) {
-          let l = o.doc.path.length;
-          if (o.data.depth - 1 !== l) {
+          let path = this.get(o.doc.id).path;
+          if (o.data.depth - 1 !== path.length) {
             throw new Error("depth error");
           }
 
-          if (o.data.parentId !== (o.doc.path[l - 1] || null)) {
+          if (o.data.parentId !== (path[path.length - 1] || null)) {
             throw new Error("error parentId");
           }
 
           return {
             id: o.doc.id,
-            path: o.doc.path,
+            path: path,
             order: o.doc.order,
             userId: o.doc.userId,
             children: childs,

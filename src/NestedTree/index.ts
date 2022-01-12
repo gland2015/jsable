@@ -1098,10 +1098,10 @@ class NestedCore<T, S> {
         dptAdd = curNode.dpt - moveNode.dpt;
       } else if (position === 3) {
         tarLft = curNode.lft + 1;
-        dptAdd = curNode.dpt - 1 - moveNode.dpt;
+        dptAdd = curNode.dpt + 1 - moveNode.dpt;
       } else {
         tarLft = curNode.rgt;
-        dptAdd = curNode.dpt - 1 - moveNode.dpt;
+        dptAdd = curNode.dpt + 1 - moveNode.dpt;
       }
     } else {
       if (position === 1) {
@@ -1118,16 +1118,19 @@ class NestedCore<T, S> {
         dptAdd = maxRgtDpt - moveNode.dpt;
       }
     }
-    this.move_(initLft, initRgt, tarLft, dptAdd);
 
-    if (curNode) {
-      if (position === 1 || position === 2) {
-        this.setPid(moveNode.nodeData, curNode.parentId);
+    let hasMove = this.move_(initLft, initRgt, tarLft, dptAdd);
+
+    if (hasMove) {
+      if (curNode) {
+        if (position === 1 || position === 2) {
+          this.setPid(moveNode.nodeData, curNode.parentId);
+        } else {
+          this.setPid(moveNode.nodeData, curNode.id);
+        }
       } else {
-        this.setPid(moveNode.nodeData, curNode.id);
+        this.setPid(moveNode.nodeData, null);
       }
-    } else {
-      this.setPid(moveNode.nodeData, null);
     }
   }
 
@@ -1139,6 +1142,10 @@ class NestedCore<T, S> {
    *  dptDiff - 两边的深度差
    */
   public move_(l1: number, r1: number, l2: number, dptDiff: number) {
+    if (l1 === l2 || r1 + 1 === l2) {
+      return false;
+    }
+
     if (l1 <= l2 && l2 <= r1) {
       throw new Error("can not move to self!");
     }
@@ -1146,6 +1153,9 @@ class NestedCore<T, S> {
     const d1 = r1 - l1;
     const diff = l2 - l1;
     const isBack = l1 >= l2;
+
+    const C_d1_1 = d1 + 1;
+    const C_diff_d_1 = diff - d1 - 1;
 
     this.forEach((o) => {
       const x = this.getLft(o);
@@ -1161,31 +1171,33 @@ class NestedCore<T, S> {
           }
         } else {
           if (x >= l2 && x <= l1) {
-            this.setLft(o, x + d1 + 1);
+            this.setLft(o, x + C_d1_1);
           }
 
           if (y >= l2 && y <= l1) {
-            this.setRgt(o, y + d1 + 1);
+            this.setRgt(o, y + C_d1_1);
           }
         }
       } else {
         if (isMove) {
-          this.setLft(o, x + diff - d1);
-          this.setRgt(o, y + diff - d1);
+          this.setLft(o, x + C_diff_d_1);
+          this.setRgt(o, y + C_diff_d_1);
           if (dptDiff) {
             this.setDpt(o, this.getDpt(o) + dptDiff);
           }
         } else {
           if (x < l2 && x > l1) {
-            this.setLft(o, x - d1 - 1);
+            this.setLft(o, x - C_d1_1);
           }
 
           if (y < l2 && y > l1) {
-            this.setRgt(o, y - d1 - 1);
+            this.setRgt(o, y - C_d1_1);
           }
         }
       }
     });
+
+    return true;
 
     function isMoveNode(x, y) {
       return x >= l1 && y <= r1;

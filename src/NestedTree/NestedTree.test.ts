@@ -170,6 +170,36 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
       });
     });
   });
+
+  it.only("remove", () => {
+    const testList1 = new TestList();
+    let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
+
+    nestedTree.remove(nestedTree.node(49).lft, nestedTree.node(57).rgt);
+    nestedTree.check();
+
+    const testList2 = new TestList();
+    testList2.remove(49);
+    testList2.remove(57);
+
+    let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList1));
+    expect(testList2.list).toEqual(treeList);
+  });
+
+  it("removeBy", () => {
+    const testList1 = new TestList();
+    let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
+
+    let idTar = 34;
+    nestedTree.removeBy(idTar);
+    nestedTree.check();
+
+    const testList2 = new TestList();
+    testList2.remove(idTar);
+
+    let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList1));
+    expect(testList2.list).toEqual(treeList);
+  });
 });
 
 describe.each(eachTable)("NestedNode", (treeOp, util) => {
@@ -462,6 +492,112 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
       });
     });
   });
+
+  it("removeSelf", () => {
+    const testList1 = new TestList();
+    let nestedTree1 = NestedTree.fromItem(testList1.list, treeOp);
+
+    testIds.forEach(function (idTar) {
+      const testList2 = new TestList();
+      let nestedTree = nestedTree1.clone();
+
+      nestedTree.node(idTar).removeSelf();
+      nestedTree.check();
+
+      testList2.remove(idTar);
+
+      let treeList = nestedTree.toItemTreeObj(util.toItemObj.bind(testList2));
+      expect(testList2.list).toEqual(treeList);
+    });
+  });
+
+  it("parentIds", () => {
+    const testList1 = new TestList();
+    let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
+
+    let idTar = 36;
+    let parentIds = nestedTree.node(idTar).parentIds();
+
+    expect(parentIds).toEqual([35, 34, 33]);
+  });
+
+  it("isChildOf", () => {
+    const testList1 = new TestList();
+    let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
+
+    let idTar = 36;
+
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33))).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "self-direct")).toEqual(false);
+
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34))).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "self-direct")).toEqual(false);
+
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35))).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "self-direct")).toEqual(true);
+
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar))).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "no-self")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "self-direct")).toEqual(true);
+
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(1))).toEqual(false);
+  });
+
+  it("isParentOf", () => {
+    const testList1 = new TestList();
+    let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
+
+    let idTar = 33;
+
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33))).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "no-self")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "self-direct")).toEqual(true);
+
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34))).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "self-direct")).toEqual(true);
+
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35))).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "self-direct")).toEqual(false);
+
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36))).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "self-direct")).toEqual(false);
+
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(1))).toEqual(false);
+  });
+
+  it.only("isSlibingOf", () => {
+    const testList1 = new TestList();
+    let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
+
+    let idTar = 33;
+
+    expect(nestedTree.node(33).isSlibingOf(nestedTree.node(1))).toEqual(true);
+    expect(nestedTree.node(34).isSlibingOf(nestedTree.node(48))).toEqual(true);
+
+    expect(nestedTree.node(idTar).isSlibingOf(nestedTree.node(2))).toEqual(false);
+  });
 });
 
 function init() {
@@ -480,6 +616,11 @@ function init() {
       if (path.length === 0) return false;
 
       return path.every((o, i) => o === path2[i]);
+    }
+
+    remove(id) {
+      const itemIn = this.getInList(id);
+      itemIn.list.splice(itemIn.index, 1);
     }
 
     moveTo(id, id2, pos) {

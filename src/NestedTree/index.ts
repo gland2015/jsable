@@ -726,15 +726,15 @@ class NestedCore<T, S> {
     const dpt2 = this.getDpt(node2);
 
     if (type === "direct") {
-      return l1 > l2 && r1 < r2 && dpt1 === dpt2 - 1;
+      return l1 > l2 && r1 < r2 && dpt1 === dpt2 + 1;
     }
 
     if (type === "no-self-no-direct") {
-      return l1 > l2 && r1 < r2 && dpt1 < dpt2 - 1;
+      return l1 > l2 && r1 < r2 && dpt1 > dpt2 + 1;
     }
 
     if (type === "self-direct") {
-      return l1 >= l2 && r1 <= r2 && dpt1 >= dpt2 - 1;
+      return l1 >= l2 && r1 <= r2 && dpt1 <= dpt2 + 1;
     }
 
     throw new Error("unknown relation type: " + type);
@@ -758,15 +758,15 @@ class NestedCore<T, S> {
     const dpt2 = this.getDpt(node2);
 
     if (type === "direct") {
-      return l1 < l2 && r1 > r2 && dpt1 === dpt2 + 1;
+      return l1 < l2 && r1 > r2 && dpt1 === dpt2 - 1;
     }
 
     if (type === "no-self-no-direct") {
-      return l1 < l2 && r1 > r2 && dpt1 > dpt2 + 1;
+      return l1 < l2 && r1 > r2 && dpt1 < dpt2 - 1;
     }
 
     if (type === "self-direct") {
-      return l1 <= l2 && r1 >= r2 && dpt1 <= dpt2 + 1;
+      return l1 <= l2 && r1 >= r2 && dpt1 >= dpt2 - 1;
     }
 
     throw new Error("unknown relation type: " + type);
@@ -1054,7 +1054,8 @@ class NestedCore<T, S> {
   public remove(minLeft: number, maxRight: number) {
     const newList = [];
     const rList = [];
-    let diff = maxRight - minLeft;
+
+    let diff = maxRight - minLeft + 1;
     this.forEach((o) => {
       let lft = this.getLft(o);
       let rgt = this.getRgt(o);
@@ -1063,10 +1064,10 @@ class NestedCore<T, S> {
         rList.push(o);
         return;
       }
-      if (lft > minLeft) {
+      if (lft >= minLeft) {
         this.setLft(o, lft - diff);
       }
-      if (rgt > maxRight) {
+      if (rgt >= maxRight) {
         this.setRgt(o, rgt - diff);
       }
       newList.push(o);

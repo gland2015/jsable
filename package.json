@@ -29,6 +29,7 @@
   "scripts": {
     "style": "eslint *.js .internal/**/*.js",
     "test": "jest --config ./jest.config.js",
+    "testFile": "jest NestedTree.test.ts --config ./jest.config.js",
     "validate": "npm run style && npm run test",
     "build": "rollup -c ./rollup.config.js",
     "public": "npm run build && cd ./dist && npm publish"
@@ -44,7 +45,7 @@
     "@rollup/plugin-babel": "^5.3.0",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
-    "@types/jest": "^27.0.1",
+    "@types/jest": "^27.0.3",
     "del": "^6.0.0",
     "eslint": "^7.32.0",
     "fs-extra": "^10.0.0",

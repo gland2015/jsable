@@ -10,21 +10,35 @@ type TreeOptions<T> = {
   lft?: KeyOp<T>;
   rgt?: KeyOp<T>;
   depth?: KeyOp<T>;
+  pid?: string | KeyOp<T>;
+  rootPid?: string | number | null;
 };
 
-type BuildItemOptions<T> = {
+type BuildItemOptions<T, S> = TreeOptions<T> & {
   startDepth?: number;
   startLeft?: number;
-  setItem?: (o: T, lft: number, rgt: number, depth: number) => any;
-  children?: string & ((o: T) => Array<T>);
+  children?: string | ((o: S) => Array<S>);
+  setItem?: (o: S, lft: number, rgt: number, depth: number, parentId: number | string) => T;
 };
 
-type BuildFlatOptions<T> = {
+type BuildFlatOptions<T, S> = TreeOptions<T> & {
   startDepth?: number;
   startLeft?: number;
-  flatId?: string & ((o: T) => number | string);
-  parentId?: string | ((o: T) => number | string);
-  isRoot?: (pid: string | number, o?: T) => boolean;
-  setItem?: (o: T, lft: number, rgt: number, depth: number) => any;
+  flatId?: string & ((o: S) => number | string);
+  flatPid?: string | ((o: S) => number | string);
+  setItem?: (o: S, lft: number, rgt: number, depth: number, parentId: number | string) => any;
 };
 
+type idFn<T> = string | number | ((o: T) => boolean);
+
+type PosType = 1 | 2 | 3 | 4;
+
+type SetItem = string | ((o, childs) => any);
+
+type RelationType = "default" | "direct" | "self-direct" | "no-self" | "no-self-no-direct";
+
+type ListInfo<T> = {
+  list: Array<T>;
+  minLeft: number;
+  minDpt: number;
+}

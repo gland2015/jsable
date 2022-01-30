@@ -6,6 +6,170 @@ const InitList = new TestList();
 const testIds = InitList.idList;
 const moveTarIds = [1, 49, 63, , 46, 34, 43, 44];
 
+describe("base", () => {
+  it("get set - lft rgt dpt parentId", () => {
+    const standard = [{ id: 1, name: "n1", lft: 1, rgt: 2, depth: 1, parentId: null }];
+
+    let arr: any = [
+      {
+        list: [
+          {
+            id: 1,
+            name: "n1",
+          },
+        ],
+        options: undefined,
+        toStandard: function (o) {
+          return {
+            id: o.id,
+            name: o.name,
+            lft: o.lft,
+            rgt: o.rgt,
+            depth: o.depth,
+            parentId: o.parentId,
+          };
+        },
+      },
+      {
+        list: [
+          {
+            doc: {
+              id: 1,
+              name: "n1",
+            },
+            data: {},
+          },
+        ],
+        options: {
+          id: "doc.id",
+          lft: "data.lft",
+          rgt: "data.rgt",
+          depth: "data.depth",
+          pid: "data.parentId",
+        },
+        toStandard: function (o) {
+          return {
+            id: o.doc.id,
+            name: o.doc.name,
+            lft: o.data.lft,
+            rgt: o.data.rgt,
+            depth: o.data.depth,
+            parentId: o.data.parentId,
+          };
+        },
+      },
+      {
+        list: [
+          {
+            doc: {
+              id: 1,
+              name: "n1",
+            },
+            data: {},
+          },
+        ],
+        options: {
+          id: (o) => o.doc.id,
+          lft: {
+            get: (o) => o.data.lft,
+            set: (o, lft) => (o.data.lft = lft),
+          },
+          rgt: {
+            get: (o) => o.data.rgt,
+            set: (o, rgt) => (o.data.rgt = rgt),
+          },
+          depth: {
+            get: (o) => o.data.depth,
+            set: (o, depth) => (o.data.depth = depth),
+          },
+          pid: {
+            get: (o) => o.data.parentId,
+            set: (o, parentId) => (o.data.parentId = parentId),
+          },
+        },
+        toStandard: function (o) {
+          return {
+            id: o.doc.id,
+            name: o.doc.name,
+            lft: o.data.lft,
+            rgt: o.data.rgt,
+            depth: o.data.depth,
+            parentId: o.data.parentId,
+          };
+        },
+      },
+      {
+        list: [
+          {
+            doc: {
+              _id: 1,
+              _name: "n1",
+            },
+            data: {},
+          },
+        ],
+        options: {
+          id: "doc._id",
+          lft: "data._lft",
+          rgt: "data.$rgt",
+          depth: "data.$depth",
+          pid: "data.$parentId",
+          rootPid: 3,
+          startDepth: 4,
+          startLeft: 5,
+        },
+        toStandard: function (o) {
+          return {
+            id: o.doc._id,
+            name: o.doc._name,
+            lft: o.data._lft - 4,
+            rgt: o.data.$rgt - 4,
+            depth: o.data.$depth - 3,
+            parentId: null,
+          };
+        },
+      },
+    ];
+
+    arr.forEach(function (data) {
+      let tree = NestedTree.fromItem(data.list, data.options);
+
+      // 测试转换
+      let obj = tree.toItemTreeObj(data.toStandard);
+      expect(obj).toEqual(standard);
+
+      let node = tree.node(1);
+      let lft = data.options?.startLeft || 1;
+      let rgt = lft + 1;
+      let dpt = data.options?.startDepth || 1;
+      let pid = data.options?.rootPid || null;
+
+      expect(node.lft).toEqual(lft);
+      expect(node.rgt).toEqual(rgt);
+      expect(node.dpt).toEqual(dpt);
+      expect(node.parentId).toEqual(pid);
+
+      let core = tree["core"];
+
+      // lft
+      core.setLft(node.nodeData, 11);
+      expect(node.lft).toEqual(11);
+
+      // rgt
+      core.setRgt(node.nodeData, 22);
+      expect(node.rgt).toEqual(22);
+
+      // dpt
+      core.setDpt(node.nodeData, 33);
+      expect(node.dpt).toEqual(33);
+
+      // parentId
+      core.setPid(node.nodeData, 44);
+      expect(node.parentId).toEqual(44);
+    });
+  });
+});
+
 describe.each(eachTable)("NestedTree", (treeOp, util) => {
   it("toItemTreeObj", () => {
     const testList1 = new TestList();
@@ -171,7 +335,7 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
     });
   });
 
-  it.only("remove", () => {
+  it("remove", () => {
     const testList1 = new TestList();
     let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
 
@@ -551,6 +715,12 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "no-self-no-direct")).toEqual(false);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "self-direct")).toEqual(true);
 
+    expect(nestedTree.node(idTar).isChildOf(35)).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(35, "direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(35, "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(35, "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(35, "self-direct")).toEqual(true);
+
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(1))).toEqual(false);
   });
 
@@ -584,10 +754,16 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "no-self-no-direct")).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "self-direct")).toEqual(false);
 
+    expect(nestedTree.node(idTar).isParentOf(36)).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(36, "direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(36, "no-self")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(36, "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(36, "self-direct")).toEqual(false);
+
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(1))).toEqual(false);
   });
 
-  it.only("isSlibingOf", () => {
+  it("isSlibingOf", () => {
     const testList1 = new TestList();
     let nestedTree = NestedTree.fromItem(testList1.list, treeOp);
 
@@ -595,6 +771,9 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
 
     expect(nestedTree.node(33).isSlibingOf(nestedTree.node(1))).toEqual(true);
     expect(nestedTree.node(34).isSlibingOf(nestedTree.node(48))).toEqual(true);
+
+    expect(nestedTree.node(33).isSlibingOf(1)).toEqual(true);
+    expect(nestedTree.node(34).isSlibingOf(48)).toEqual(true);
 
     expect(nestedTree.node(idTar).isSlibingOf(nestedTree.node(2))).toEqual(false);
   });
@@ -794,73 +973,6 @@ function init() {
    */
   let eachTable: any = [
     [
-      undefined as any,
-      {
-        getUserId: function (o) {
-          return o.userId;
-        },
-        getId: function (o) {
-          return o.id;
-        },
-        toItemObj: function (o, childs) {
-          let path = this.get(o.id).path;
-          if (o.depth - 1 !== path.length) {
-            throw new Error("depth error");
-          }
-
-          if (o.parentId !== (path[path.length - 1] || null)) {
-            throw new Error("error parentId");
-          }
-
-          return {
-            id: o.id,
-            path: path,
-            order: o.order,
-            userId: o.userId,
-            children: childs,
-          };
-        },
-      },
-    ],
-    [
-      {
-        id: "id",
-        lft: "$lft",
-        rgt: "$rgt",
-        depth: "$depth",
-        pid: "$parentId",
-        startDepth: 2,
-        startLeft: 3,
-        children: "children",
-      },
-      {
-        getUserId: function (o) {
-          return o.userId;
-        },
-        getId: function (o) {
-          return o.id;
-        },
-        toItemObj: function (o, childs) {
-          let path = this.get(o.id).path;
-          if (o.$depth - 2 !== path.length) {
-            throw new Error("depth error");
-          }
-
-          if (o.$parentId !== (path[path.length - 1] || null)) {
-            throw new Error("error parentId");
-          }
-
-          return {
-            id: o.id,
-            path: path,
-            order: o.order,
-            userId: o.userId,
-            children: childs,
-          };
-        },
-      },
-    ],
-    [
       {
         id: (o) => o.doc.id,
         lft: {
@@ -928,3 +1040,71 @@ function init() {
 
   return { TestList, eachTable };
 }
+
+// [
+//   undefined as any,
+//   {
+//     getUserId: function (o) {
+//       return o.userId;
+//     },
+//     getId: function (o) {
+//       return o.id;
+//     },
+//     toItemObj: function (o, childs) {
+//       let path = this.get(o.id).path;
+//       if (o.depth - 1 !== path.length) {
+//         throw new Error("depth error");
+//       }
+
+//       if (o.parentId !== (path[path.length - 1] || null)) {
+//         throw new Error("error parentId");
+//       }
+
+//       return {
+//         id: o.id,
+//         path: path,
+//         order: o.order,
+//         userId: o.userId,
+//         children: childs,
+//       };
+//     },
+//   },
+// ],
+// [
+//   {
+//     id: "id",
+//     lft: "$lft",
+//     rgt: "$rgt",
+//     depth: "$depth",
+//     pid: "$parentId",
+//     startDepth: 2,
+//     startLeft: 3,
+//     children: "children",
+//   },
+//   {
+//     getUserId: function (o) {
+//       return o.userId;
+//     },
+//     getId: function (o) {
+//       return o.id;
+//     },
+//     toItemObj: function (o, childs) {
+//       let path = this.get(o.id).path;
+//       if (o.$depth - 2 !== path.length) {
+//         throw new Error("depth error");
+//       }
+
+//       if (o.$parentId !== (path[path.length - 1] || null)) {
+//         throw new Error("error parentId");
+//       }
+
+//       return {
+//         id: o.id,
+//         path: path,
+//         order: o.order,
+//         userId: o.userId,
+//         children: childs,
+//       };
+//     },
+//   },
+// ],

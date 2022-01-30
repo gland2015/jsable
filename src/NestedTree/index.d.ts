@@ -42,3 +42,4 @@ type ListInfo<T> = {
   minLeft: number;
   minDpt: number;
 }
+

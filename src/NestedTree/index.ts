@@ -230,16 +230,16 @@ export class NestedTree<T = any, S = any> {
     return this.core.check();
   }
 
-  public isChildOf(node1: NestedNode<T, S>, node2: NestedNode<T, S>, type?: RelationType) {
-    return this.core.isChildOf(node1.nodeData, node2.nodeData, type);
+  public isChildOf(node1: string | number | NestedNode<T, S>, node2: string | number | NestedNode<T, S>, type?: RelationType) {
+    return this.core.isChildOf(this.core.getNodeData(node1), this.core.getNodeData(node2), type);
   }
 
-  public isParentOf(node1: NestedNode<T, S>, node2: NestedNode<T, S>, type?: RelationType) {
-    return this.core.isParentOf(node1.nodeData, node2.nodeData, type);
+  public isParentOf(node1: string | number | NestedNode<T, S>, node2: string | number | NestedNode<T, S>, type?: RelationType) {
+    return this.core.isParentOf(this.core.getNodeData(node1), this.core.getNodeData(node2), type);
   }
 
-  public isSlibingOf(node1: NestedNode<T, S>, node2: NestedNode<T, S>) {
-    return this.core.isSlibingOf(node1.nodeData, node2.nodeData);
+  public isSlibingOf(node1: string | number | NestedNode<T, S>, node2: string | number | NestedNode<T, S>) {
+    return this.core.isSlibingOf(this.core.getNodeData(node1), this.core.getNodeData(node2));
   }
 
   public parentIds(node: NestedNode<T, S>) {
@@ -424,16 +424,16 @@ class NestedNode<T, S> {
     return this;
   }
 
-  public isChildOf(node: NestedNode<T, S>, type?: RelationType) {
-    return this.core.isChildOf(this.nodeData, node.nodeData, type);
+  public isChildOf(node: string | number | NestedNode<T, S>, type?: RelationType) {
+    return this.core.isChildOf(this.nodeData, this.core.getNodeData(node), type);
   }
 
-  public isParentOf(node: NestedNode<T, S>, type?: RelationType) {
-    return this.core.isParentOf(this.nodeData, node.nodeData, type);
+  public isParentOf(node: string | number | NestedNode<T, S>, type?: RelationType) {
+    return this.core.isParentOf(this.nodeData, this.core.getNodeData(node), type);
   }
 
-  public isSlibingOf(node: NestedNode<T, S>) {
-    return this.core.isSlibingOf(this.nodeData, node.nodeData);
+  public isSlibingOf(node: string | number | NestedNode<T, S>) {
+    return this.core.isSlibingOf(this.nodeData, this.core.getNodeData(node));
   }
 
   public parentIds() {
@@ -810,6 +810,13 @@ class NestedCore<T, S> {
       ids.sort((a, b) => b.lft - a.lft);
       return ids.map((o) => o.id);
     }
+  }
+
+  public getNodeData(info: string | number | NestedNode<T, S>) {
+    if (info instanceof NestedNode) {
+      return info.nodeData;
+    }
+    return this.get(info);
   }
 
   public buildNewNode(item: NewNode<T, S>, parentId: any) {
@@ -1358,12 +1365,30 @@ function buildOptions(options) {
     } else if (typeof value === "function") {
       result[get] = value;
     } else {
-      result[set] = function (o, v) {
-        o[value] = v;
-      };
-      result[get] = function (o) {
-        return o[value];
-      };
+      let arr = value.split(/(?<!\\)\./);
+      if (arr.length === 1) {
+        result[set] = function (o, v) {
+          o[value] = v;
+        };
+        result[get] = function (o) {
+          return o[value];
+        };
+      } else {
+        result[set] = function (o, v) {
+          for (let i = 0; i < arr.length - 1; i++) {
+            let key = arr[i];
+            o = o[key];
+          }
+          o[arr[arr.length - 1]] = v;
+        };
+        result[get] = function (o) {
+          for (let i = 0; i < arr.length - 1; i++) {
+            let key = arr[i];
+            o = o[key];
+          }
+          return o[arr[arr.length - 1]];
+        };
+      }
     }
   });
 

@@ -1,5 +1,6 @@
 import "./index.d";
 import { cloneDeep } from "../cloneDeep";
+import { getObjPropFn } from "../parseObjPath";
 
 type NewNode<T, S> = S | T | Array<T> | Array<S> | NestedTree<T, S> | NestedNode<any, any>;
 
@@ -20,7 +21,7 @@ export class NestedTree<T = any, S = any> {
 
     const getId = bOptions.getId;
     const getItem = bOptions.setItem;
-    const getChild = typeof children === "function" ? children : (o) => o[children];
+    const getChild = typeof children === "function" ? children : getObjPropFn(children).get;
 
     const list = [];
 
@@ -72,8 +73,8 @@ export class NestedTree<T = any, S = any> {
     let itemList = [];
 
     if (flatTree.length) {
-      const getId = typeof flatId === "function" ? flatId : (o) => o[flatId];
-      const getPid = typeof flatPid === "function" ? flatPid : (o) => o[flatPid];
+      const getId = typeof flatId === "function" ? flatId : getObjPropFn(flatId).get;
+      const getPid = typeof flatPid === "function" ? flatPid : getObjPropFn(flatPid).get;
 
       const itemObj = {};
 
@@ -111,20 +112,21 @@ export class NestedTree<T = any, S = any> {
         }
       });
 
-      // 更换pid为参数rootPid
-      if (rootPid !== null && itemObj[rootPid] && itemObj[rootPid].children.length) {
+      if (itemObj[rootPid] && itemObj[rootPid].children.length) {
         itemList = itemObj[rootPid].children;
       } else if (!itemList.length) {
         // 查找rootList
         for (let key in itemObj) {
           let item = itemObj[key];
           if (!item.doc) {
-            itemList = item.children.length;
+            itemList = item.children;
+            break;
           }
         }
       }
     }
 
+    // 更换pid为参数rootPid，使可修改
     itemOpt["rootPid"] = rootPid;
     const setItemFlat = function (o, lft, rgt, depth, pid) {
       return bOptions.setItem(o.doc, lft, rgt, depth, pid);
@@ -1216,12 +1218,8 @@ class NestedCore<T, S> {
     // 1、fn返回目标元素的子元素列表
     // 2、每个子元素已包含其子
     const that = this;
-    if (typeof setItem === "string") {
-      let name = setItem;
-      setItem = function (o, childs) {
-        o[name] = childs;
-        return o;
-      };
+    if (typeof setItem !== "function") {
+      setItem = getObjPropFn(setItem).set;
     }
 
     let list = values.concat().sort((a, b) => {
@@ -1254,12 +1252,8 @@ class NestedCore<T, S> {
   }
 
   public toItemTreeObj_(setItem: SetItem = "children", values = this.list) {
-    if (typeof setItem === "string") {
-      let name = setItem;
-      setItem = function (o, childs) {
-        o[name] = childs;
-        return o;
-      };
+    if (typeof setItem !== "function") {
+      setItem = getObjPropFn(setItem).set;
     }
 
     let list = values.concat().sort((a, b) => {
@@ -1365,29 +1359,11 @@ function buildOptions(options) {
     } else if (typeof value === "function") {
       result[get] = value;
     } else {
-      let arr = value.split(/(?<!\\)\./);
-      if (arr.length === 1) {
-        result[set] = function (o, v) {
-          o[value] = v;
-        };
-        result[get] = function (o) {
-          return o[value];
-        };
-      } else {
-        result[set] = function (o, v) {
-          for (let i = 0; i < arr.length - 1; i++) {
-            let key = arr[i];
-            o = o[key];
-          }
-          o[arr[arr.length - 1]] = v;
-        };
-        result[get] = function (o) {
-          for (let i = 0; i < arr.length - 1; i++) {
-            let key = arr[i];
-            o = o[key];
-          }
-          return o[arr[arr.length - 1]];
-        };
+      // string | number
+      let fnObj = getObjPropFn(value);
+      result[get] = fnObj.get;
+      if (set) {
+        result[set] = fnObj.set;
       }
     }
   });

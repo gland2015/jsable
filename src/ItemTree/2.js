@@ -51,6 +51,7 @@ export class ItemTree {
   }
 
   iteratUp(fn) {
+    
     // 子在父之前遍历
     let isEnd = false;
     let isStopUp = false;
@@ -375,6 +376,7 @@ export class ItemTree {
 
   // todo
   setIndexes() {}
+  
   find() {}
   findOne() {}
   map() {}

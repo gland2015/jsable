@@ -183,6 +183,22 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
     expect(testList2.list).toEqual(treeList);
   });
 
+  it("from flat tree", () => {
+    let flatList = [
+      { id: 1, name: "n1", parentId: null },
+      { id: 2, name: "n2", parentId: 1 },
+      { id: 3, name: "n3", parentId: 1 },
+    ];
+
+    let tree = NestedTree.fromFlat(flatList);
+
+    let node1 = tree.node(1);
+
+    expect(node1.lft).toEqual(1);
+    expect(node1.rgt).toEqual(6);
+    
+  });
+
   it("get", () => {
     const testList1 = new TestList();
     const testList2 = new TestList();

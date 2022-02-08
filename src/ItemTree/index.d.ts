@@ -13,4 +13,3 @@ type iteratFn<T> = (item: T, pData?: any, context?: iteratContext) => any;
 
 type iteratUpFn<T> = (item: T, subData?: Array<any>, context?: iteratContext) => any;
 
-type filterInfo<T = any> = string | number | ((o: T) => boolean);

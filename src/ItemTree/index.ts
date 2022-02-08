@@ -2,7 +2,7 @@ import "./index.d";
 
 import { getObjPropFn } from "../parseObjPath";
 
-export class ItemTree<T = any> {
+class TreeCore<T = any> {
   constructor(list: Array<T>, options?: ItemTreeOptions<T>) {
     this.tree = list;
     const { getId, getChild } = buildOptions(options);
@@ -11,8 +11,22 @@ export class ItemTree<T = any> {
   }
 
   public tree: Array<T>;
-  private getId: (o: T) => string | number;
-  private getChild: (o: T) => Array<T>;
+
+  public getId: (o: T) => string | number;
+  public getChild: (o: T) => Array<T>;
+}
+
+abstract class TreeBase<T = any> {
+  constructor() {}
+
+  protected core: TreeCore<T>;
+  protected abstract get tree(): Array<T>;
+  protected map: {
+    [key: string]: {
+      pId: string | number;
+      data: T;
+    };
+  };
 
   public iterat(fn: iteratFn<T>, initData?) {
     // 父在子之前遍历
@@ -33,7 +47,7 @@ export class ItemTree<T = any> {
       for (let i = 0; i < list.length; i++) {
         path[path.length - 1] = i;
         let item = list[i];
-        let childList = this.getChild(item);
+        let childList = this.core.getChild(item);
         path.push(0);
         let subData = fn(item, pData, context);
         path.pop();
@@ -79,7 +93,7 @@ export class ItemTree<T = any> {
       for (let i = 0; i < list.length; i++) {
         path[path.length - 1] = i;
         let item = list[i];
-        let subList = this.getChild(item);
+        let subList = this.core.getChild(item);
 
         let subData = [];
         if (subList?.length) {
@@ -119,9 +133,6 @@ export class ItemTree<T = any> {
     return iterator(this.tree, path);
   }
 
-  // 收集每个元素的数据
-  private itemValue;
-  private itemKeys = {} as any;
   public itemData(key) {
     const that = this;
     const set = (data) => {
@@ -133,6 +144,7 @@ export class ItemTree<T = any> {
     };
     return new ItemAction(that, set);
   }
+
   public unItemData(key) {
     if (key) {
       delete this.itemKeys[key];
@@ -143,9 +155,6 @@ export class ItemTree<T = any> {
     return this;
   }
 
-  // 收集树的整体数据
-  private entireValue;
-  private entireKeys = {} as any;
   public entireData(key) {
     const that = this;
     const set = (data) => {
@@ -157,6 +166,7 @@ export class ItemTree<T = any> {
     };
     return new EntireAction(that, set);
   }
+
   public unEntireData(key) {
     if (key) {
       delete this.entireKeys[key];
@@ -306,7 +316,7 @@ export class ItemTree<T = any> {
         // 数量减为0
         let r = { fnDataList: null, callback: null };
         let itData;
-        const children = this.getChild(item);
+        const children = this.core.getChild(item);
 
         // 如果还存在向上函数
         if (upInfo.num) {
@@ -435,19 +445,9 @@ export class ItemTree<T = any> {
     return entireData;
   }
 
-  private buildFindInfo(value) {
-    if (typeof value === "function") {
-      return value;
-    }
-    return (o) => {
-      return this.getId(o) === value;
-    };
-  }
-
-  public find(info: filterInfo<T>): Array<T> {
+  public find(fn: (o: T) => boolean): Array<T> {
     const list = [];
 
-    const fn = this.buildFindInfo(info);
     this.iterat((item, pData, context) => {
       if (fn(item)) {
         list.push(item);
@@ -456,10 +456,22 @@ export class ItemTree<T = any> {
     return list;
   }
 
-  public findOne(info: filterInfo<T>): Array<T> {
-    let r;
+  public findOne(info: string | number | ((o: T) => boolean)): T {
+    let fn;
+    if (typeof info !== "function") {
+      if (this.map) {
+        let item = this.map[info];
+        return item ? item.data : null;
+      } else {
+        fn = (o) => {
+          return this.core.getId(o) === info;
+        };
+      }
+    } else {
+      fn = info;
+    }
 
-    const fn = this.buildFindInfo(info);
+    let r;
     this.iterat((item, pData, context) => {
       if (fn(item)) {
         r = item;
@@ -469,7 +481,115 @@ export class ItemTree<T = any> {
     return r;
   }
 
-  
+  /**
+   * 设置或更新索引
+   */
+  public setIndex(obj?: T) {
+    let tree = this.tree;
+    if (obj) {
+      this.removeIndex(this.core.getId(obj));
+      tree = [obj];
+    }
+
+    if (!this.map) {
+      this.map = {};
+    }
+
+    const set = (list: Array<T>, pId) => {
+      if (list && list.length) {
+        for (let i = 0; i < list.length; i++) {
+          let o = list[i];
+          let id = this.core.getId(o);
+          let childs = this.core.getChild(o);
+
+          this.map[id] = {
+            pId,
+            data: o,
+          };
+
+          set(childs, id);
+        }
+      }
+    };
+    set(tree, null);
+  }
+
+  /**
+   * 移除索引
+   */
+  public removeIndex(id?: string | number) {
+    if (id === undefined || id === null) {
+      this.map = null;
+      return;
+    }
+
+    const remove = (id) => {
+      let obj = this.map[id];
+      if (obj) {
+        delete this.map[id];
+        let childs = this.core.getChild(obj.data);
+        if (childs && childs.length) {
+          for (let i = 0; i < childs.length; i++) {
+            remove(this.core.getId(childs[i]));
+          }
+        }
+      }
+    };
+
+    remove(id);
+  }
+
+  // 收集每个元素的数据
+  private itemValue;
+  private itemKeys = {} as any;
+  // 收集树的整体数据
+  private entireValue;
+  private entireKeys = {} as any;
+}
+
+export class ItemTree<T = any> extends TreeBase<T> {
+  constructor(list: Array<T>, options?: ItemTreeOptions<T>) {
+    super();
+    this.core = new TreeCore(list, options);
+  }
+
+  protected get tree() {
+    return this.core.tree;
+  }
+
+  public value(): Array<T> {
+    return this.tree;
+  }
+
+  public node(id: string | number | ((o: T) => boolean)) {
+    let data = this.findOne(id);
+    if (!data) {
+      throw new Error("not find node: " + id);
+    }
+
+    let node = new ItemNode<T>(data, this.core);
+    if (this.map) {
+      node.setIndex();
+    }
+    return node;
+  }
+}
+
+class ItemNode<T = any> extends TreeBase<T> {
+  constructor(data: T, core: TreeCore<T>) {
+    super();
+    this.nodeData = [data];
+    this.core = core;
+  }
+
+  private nodeData: Array<T>;
+  protected get tree() {
+    return this.nodeData;
+  }
+
+  public value(): T {
+    return this.nodeData[0];
+  }
 }
 
 class ItemAction<T> {

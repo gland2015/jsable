@@ -1,6 +1,7 @@
 import "./index.d";
 import { cloneDeep } from "../cloneDeep";
 import { getObjPropFn } from "../parseObjPath";
+import { nestToItemTree } from "../treeConvert";
 
 type NewNode<T, S> = S | T | Array<T> | Array<S> | NestedTree<T, S> | NestedNode<any, any>;
 
@@ -1215,40 +1216,10 @@ class NestedCore<T, S> {
   }
 
   public toItemTreeObj(setItem: SetItem = "children", values = this.list) {
-    // 1、fn返回目标元素的子元素列表
-    // 2、每个子元素已包含其子
-    const that = this;
     if (typeof setItem !== "function") {
       setItem = getObjPropFn(setItem).set;
     }
-
-    let list = values.concat().sort((a, b) => {
-      let lft = this.getLft(a);
-      let lft2 = this.getLft(b);
-      return lft - lft2;
-    });
-
-    let result = [];
-    findChild(result);
-
-    return result;
-
-    function findChild(arr, rgt = Number.POSITIVE_INFINITY, index = 0) {
-      let item = list[index];
-      if (item) {
-        let itemRgt = that.getRgt(item);
-        if (itemRgt <= rgt) {
-          index++;
-          let cList = [];
-          index = findChild(cList, itemRgt, index);
-          let bItem = (setItem as any)(item, cList);
-          arr.push(bItem);
-
-          return findChild(arr, rgt, index);
-        }
-      }
-      return index;
-    }
+    return nestToItemTree(values, setItem, this.getLft, this.getRgt);
   }
 
   public toItemTreeObj_(setItem: SetItem = "children", values = this.list) {

@@ -1,6 +1,37 @@
-import "./index.d";
+interface ItemTreeOptions<T> {
+  id?: string | number | ((o: T) => string | number);
+  children?: string | number | ((o: T) => Array<T>);
+}
+
+type BuildFlatOptions<T> = ItemTreeOptions<T> & {
+  rootPid?: string | number | null;
+  flatId?: string | number | ((o: any) => number | string);
+  flatPid?: string | number | ((o: any) => number | string);
+  setItem?: (o: any, childs: Array<T>) => T;
+};
+
+type BuildNestOptions<T> = ItemTreeOptions<T> & {
+  rgt?: string | number | ((o: any) => number | string);
+  lft?: string | number | ((o: any) => number | string);
+  setItem?: (o: any, childs: Array<T>) => T;
+};
+
+type iteratContext = {
+  path: Array<number>;
+  end: () => void;
+  stop: () => void;
+};
+
+type iteratFn<T> = (item: T, pData?: any, context?: iteratContext) => any;
+
+type iteratUpFn<T> = (item: T, subData?: Array<any>, context?: iteratContext) => any;
+
+type Id = string | number;
+
+type RelationType = "default" | "direct" | "self-direct" | "no-self" | "no-self-no-direct";
 
 import { getObjPropFn } from "../parseObjPath";
+import { nestToItemTree } from "../treeConvert";
 
 class TreeCore<T = any> {
   constructor(list: Array<T>, options?: ItemTreeOptions<T>) {
@@ -539,6 +570,120 @@ abstract class TreeBase<T = any> {
     remove(id);
   }
 
+  protected _isParentOf(a: Id, b: Id, type?: RelationType) {
+    type = type || "default";
+    if (a === b) {
+      if (type === "default" || type === "self-direct") {
+        return true;
+      }
+      return false;
+    }
+
+    if (this.map) {
+      let path = [];
+      let id = b;
+      let hasFindA = false;
+      while (id !== null && id !== undefined) {
+        path.push(id);
+        let p = this.map[id];
+        if (!p) {
+          break;
+        }
+        id = p.pId;
+        if (path.indexOf(id) !== -1) {
+          break;
+        }
+        if (id === a) {
+          hasFindA = true;
+          break;
+        }
+      }
+
+      if (!hasFindA) {
+        return false;
+      }
+
+      let r = false;
+      if (type === "default" || type === "no-self") {
+        r = true;
+      } else if (type === "direct" || type === "self-direct") {
+        r = path.length === 0;
+      } else if (type === "no-self-no-direct") {
+        r = path.length > 0;
+      } else {
+        r = true;
+      }
+      return r;
+    } else {
+      let r = false;
+      let hasFindA = false;
+      // 依赖遍历方式，一枝一枝
+      this.iterat((item, pData, context) => {
+        let id = this.core.getId(item);
+        if (hasFindA) {
+          if (!pData) {
+            context.end();
+          } else if (id === b) {
+            if (type === "default" || type === "no-self") {
+              r = true;
+            } else if (type === "direct" || type === "self-direct") {
+              r = pData.length === 1;
+            } else if (type === "no-self-no-direct") {
+              r = pData.length > 1;
+            } else {
+              r = true;
+            }
+            context.end();
+          } else {
+            return pData.concat(id);
+          }
+        } else {
+          if (id === a) {
+            hasFindA = true;
+            return [a];
+          } else if (id === b) {
+            context.end();
+          }
+        }
+      });
+      return r;
+    }
+  }
+
+  protected _isSlibingOf(a: Id, b: Id) {
+    if (a === b) {
+      return true;
+    }
+
+    if (this.map) {
+      let pa = this.map[a];
+      let pb = this.map[b];
+      return Boolean(pa && pb && pa.pId === pb.pId);
+    } else {
+      let r = false;
+      this.iterat((item, pData, context) => {
+        let id = this.core.getId(item);
+
+        if (id === a || id === b) {
+          let list = pData || this.tree;
+          let findTar = id === a ? b : a;
+          let i = context.path[context.path.length - 1] + 1;
+          for (; i < list.length; i++) {
+            let oId = this.core.getId(list[i]);
+            if (oId === findTar) {
+              r = true;
+              break;
+            }
+          }
+          context.end();
+          return;
+        }
+        return this.core.getChild(item);
+      });
+      return r;
+    }
+  }
+
   // 收集每个元素的数据
   private itemValue;
   private itemKeys = {} as any;
@@ -553,6 +698,77 @@ export class ItemTree<T = any> extends TreeBase<T> {
     this.core = new TreeCore(list, options);
   }
 
+  static fromFlat<T = any>(flatList: Array<any>, options: BuildFlatOptions<T>): ItemTree<T> {
+    const { id, children, flatId = id, flatPid, setItem, rootPid = null } = options || {};
+    let itemList = [];
+    // todo setItem
+    if (flatList.length) {
+      const getId = typeof flatId === "function" ? flatId : getObjPropFn(flatId || "id").get;
+      const getPid = typeof flatPid === "function" ? flatPid : getObjPropFn(flatPid || "parentId").get;
+
+      const itemObj = {};
+
+      flatList.forEach(function (o) {
+        const id = getId(o);
+        const pid = getPid(o);
+
+        let info = itemObj[id];
+        if (info) {
+          info.id = id;
+          info.pid = pid;
+          info.doc = o;
+        } else {
+          info = itemObj[id] = {
+            id,
+            pid,
+            doc: o,
+            children: [],
+          };
+        }
+
+        if (pid === undefined || pid === null) {
+          itemList.push(info);
+        } else {
+          let pInfo = itemObj[pid];
+          if (!pInfo) {
+            pInfo = itemObj[pid] = {
+              id: pid,
+              pid: null,
+              doc: null,
+              children: [],
+            };
+          }
+          pInfo.children.push(info);
+        }
+      });
+
+      if (itemObj[rootPid] && itemObj[rootPid].children.length) {
+        itemList = itemObj[rootPid].children;
+      } else if (!itemList.length) {
+        // 查找rootList
+        for (let key in itemObj) {
+          let item = itemObj[key];
+          if (!item.doc) {
+            itemList = item.children;
+            break;
+          }
+        }
+      }
+    }
+    return new ItemTree(itemList, { id, children });
+  }
+
+  static fromNest<T = any>(nestList: Array<any>, options?: BuildNestOptions<T>): ItemTree<T> {
+    const { id, children, lft, rgt, setItem } = options || {};
+
+    const getLft = typeof lft === "function" ? lft : getObjPropFn(lft || "lft").get;
+    const getRgt = typeof rgt === "function" ? rgt : getObjPropFn(rgt || "rgt").get;
+    const getItem = typeof setItem === "function" ? setItem : (o, childs) => ({ ...o, children: childs });
+    const itemList = nestToItemTree(nestList, getItem, getLft, getRgt);
+
+    return new ItemTree(itemList, { id, children });
+  }
+
   protected get tree() {
     return this.core.tree;
   }
@@ -561,10 +777,19 @@ export class ItemTree<T = any> extends TreeBase<T> {
     return this.tree;
   }
 
-  public node(id: string | number | ((o: T) => boolean)) {
-    let data = this.findOne(id);
-    if (!data) {
-      throw new Error("not find node: " + id);
+  /**
+   * 返回一个树节点
+   */
+  public node(id: Id | T | ((o: T) => boolean)) {
+    let data: T;
+    let type = typeof id;
+    if (type === "object") {
+      data = id as any;
+    } else {
+      data = this.findOne(id as any);
+      if (!data) {
+        throw new Error("not find node: " + id);
+      }
     }
 
     let node = new ItemNode<T>(data, this.core);
@@ -572,6 +797,27 @@ export class ItemTree<T = any> extends TreeBase<T> {
       node.setIndex();
     }
     return node;
+  }
+
+  /**
+   * 判断a是否是b的父
+   */
+  public isParentOf(a: Id, b: Id, type?: RelationType) {
+    return this._isParentOf(a, b, type);
+  }
+
+  /**
+   * 判断a是否是b的子
+   */
+  public isChildOf(a: Id, b: Id, type?: RelationType) {
+    return this._isParentOf(b, a, type);
+  }
+
+  /**
+   * 判断a和b是否是兄弟
+   */
+  public isSlibingOf(a: Id, b: Id) {
+    return this._isSlibingOf(a, b);
   }
 }
 
@@ -589,6 +835,31 @@ class ItemNode<T = any> extends TreeBase<T> {
 
   public value(): T {
     return this.nodeData[0];
+  }
+
+  public get id() {
+    return this.core.getId(this.nodeData[0]);
+  }
+
+  public isParentOf(b: Id | ItemNode<T>, type?: RelationType) {
+    if (b instanceof ItemNode) {
+      b = b.id;
+    }
+    return this._isParentOf(this.id, b, type);
+  }
+
+  public isChildOf(b: Id | ItemNode<T>, type?: RelationType) {
+    if (b instanceof ItemNode) {
+      b = b.id;
+    }
+    return this._isParentOf(b, this.id, type);
+  }
+
+  public isSlibingOf(b: Id | ItemNode<T>) {
+    if (b instanceof ItemNode) {
+      b = b.id;
+    }
+    return this._isSlibingOf(this.id, b);
   }
 }
 

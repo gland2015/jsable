@@ -4,7 +4,6 @@ interface ItemTreeOptions<T> {
 }
 
 type BuildFlatOptions<T> = ItemTreeOptions<T> & {
-  rootPid?: string | number | null;
   flatId?: string | number | ((o: any) => number | string);
   flatPid?: string | number | ((o: any) => number | string);
   setItem?: (o: any, childs: Array<T>) => T;
@@ -13,7 +12,7 @@ type BuildFlatOptions<T> = ItemTreeOptions<T> & {
 type BuildNestOptions<T> = ItemTreeOptions<T> & {
   rgt?: string | number | ((o: any) => number | string);
   lft?: string | number | ((o: any) => number | string);
-  setItem?: (o: any, childs: Array<T>) => T;
+  setItem?: (o: any, childs: Array<T>, level?: number) => T;
 };
 
 type iteratContext = {
@@ -31,7 +30,7 @@ type Id = string | number;
 type RelationType = "default" | "direct" | "self-direct" | "no-self" | "no-self-no-direct";
 
 import { getObjPropFn } from "../parseObjPath";
-import { nestToItemTree } from "../treeConvert";
+import { nestToItemTree, flatToItemTree } from "../treeConvert";
 
 class TreeCore<T = any> {
   constructor(list: Array<T>, options?: ItemTreeOptions<T>) {
@@ -699,61 +698,14 @@ export class ItemTree<T = any> extends TreeBase<T> {
   }
 
   static fromFlat<T = any>(flatList: Array<any>, options: BuildFlatOptions<T>): ItemTree<T> {
-    const { id, children, flatId = id, flatPid, setItem, rootPid = null } = options || {};
+    const { id, children, flatId = id, flatPid, setItem } = options || {};
     let itemList = [];
-    // todo setItem
     if (flatList.length) {
       const getId = typeof flatId === "function" ? flatId : getObjPropFn(flatId || "id").get;
       const getPid = typeof flatPid === "function" ? flatPid : getObjPropFn(flatPid || "parentId").get;
+      const getItem = typeof setItem === "function" ? setItem : (o, children, level) => ({ ...o, children, level });
 
-      const itemObj = {};
-
-      flatList.forEach(function (o) {
-        const id = getId(o);
-        const pid = getPid(o);
-
-        let info = itemObj[id];
-        if (info) {
-          info.id = id;
-          info.pid = pid;
-          info.doc = o;
-        } else {
-          info = itemObj[id] = {
-            id,
-            pid,
-            doc: o,
-            children: [],
-          };
-        }
-
-        if (pid === undefined || pid === null) {
-          itemList.push(info);
-        } else {
-          let pInfo = itemObj[pid];
-          if (!pInfo) {
-            pInfo = itemObj[pid] = {
-              id: pid,
-              pid: null,
-              doc: null,
-              children: [],
-            };
-          }
-          pInfo.children.push(info);
-        }
-      });
-
-      if (itemObj[rootPid] && itemObj[rootPid].children.length) {
-        itemList = itemObj[rootPid].children;
-      } else if (!itemList.length) {
-        // 查找rootList
-        for (let key in itemObj) {
-          let item = itemObj[key];
-          if (!item.doc) {
-            itemList = item.children;
-            break;
-          }
-        }
-      }
+      itemList = flatToItemTree(flatList, getId, getPid, getItem).tree;
     }
     return new ItemTree(itemList, { id, children });
   }

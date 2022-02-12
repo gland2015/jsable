@@ -27,10 +27,8 @@ type iteratUpFn<T> = (item: T, subData?: Array<any>, context?: iteratContext) =>
 
 type Id = string | number;
 
-type RelationType = "default" | "direct" | "self-direct" | "no-self" | "no-self-no-direct";
-
 import { getObjPropFn } from "../parseObjPath";
-import { nestToItemTree, flatToItemTree } from "../treeConvert";
+import { nestToItemTree, flatToItemTree, RelationType, getTypeChild } from "../treeUtils";
 
 class TreeCore<T = any> {
   constructor(list: Array<T>, options?: ItemTreeOptions<T>) {
@@ -78,9 +76,7 @@ abstract class TreeBase<T = any> {
         path[path.length - 1] = i;
         let item = list[i];
         let childList = this.core.getChild(item);
-        path.push(0);
         let subData = fn(item, pData, context);
-        path.pop();
 
         if (isEnd) {
           return;
@@ -90,7 +86,9 @@ abstract class TreeBase<T = any> {
           continue;
         }
         if (childList?.length) {
-          iterator(childList, subData, context);
+          path.push(0);
+          iterator(childList, subData, path);
+          path.pop();
           if (isEnd) {
             return;
           }
@@ -131,10 +129,11 @@ abstract class TreeBase<T = any> {
           subData = iterator(subList, path);
           path.pop();
           if (isEnd) {
-            return;
+            return result;
           }
           if (isStopUp) {
             if (path.length === 1) {
+              result.push(null);
               isStopUp = false;
               continue;
             } else {
@@ -145,10 +144,11 @@ abstract class TreeBase<T = any> {
 
         let data = fn(item, subData, context);
         if (isEnd) {
-          return;
+          return result;
         }
         if (isStopUp) {
           if (path.length === 1) {
+            result.push(null);
             isStopUp = false;
             continue;
           } else {
@@ -602,17 +602,7 @@ abstract class TreeBase<T = any> {
         return false;
       }
 
-      let r = false;
-      if (type === "default" || type === "no-self") {
-        r = true;
-      } else if (type === "direct" || type === "self-direct") {
-        r = path.length === 0;
-      } else if (type === "no-self-no-direct") {
-        r = path.length > 0;
-      } else {
-        r = true;
-      }
-      return r;
+      return getTypeChild(path.length + 1, type);
     } else {
       let r = false;
       let hasFindA = false;
@@ -623,15 +613,7 @@ abstract class TreeBase<T = any> {
           if (!pData) {
             context.end();
           } else if (id === b) {
-            if (type === "default" || type === "no-self") {
-              r = true;
-            } else if (type === "direct" || type === "self-direct") {
-              r = pData.length === 1;
-            } else if (type === "no-self-no-direct") {
-              r = pData.length > 1;
-            } else {
-              r = true;
-            }
+            r = getTypeChild(pData.length, type);
             context.end();
           } else {
             return pData.concat(id);

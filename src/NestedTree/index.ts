@@ -1,7 +1,7 @@
 import "./index.d";
 import { cloneDeep } from "../cloneDeep";
 import { getObjPropFn } from "../parseObjPath";
-import { nestToItemTree } from "../treeConvert";
+import { nestToItemTree, RelationType, getTypeChild } from "../treeUtils";
 
 type NewNode<T, S> = S | T | Array<T> | Array<S> | NestedTree<T, S> | NestedNode<any, any>;
 
@@ -9,7 +9,6 @@ type NewNode<T, S> = S | T | Array<T> | Array<S> | NestedTree<T, S> | NestedNode
 
 /**
  * 嵌套模型树
- *
  */
 export class NestedTree<T = any, S = any> {
   constructor(list: Array<T>, options?: TreeOptions<T>) {
@@ -717,62 +716,17 @@ class NestedCore<T, S> {
     const l2 = this.getLft(node2);
     const r2 = this.getRgt(node2);
 
-    if (!type || type === "default") {
-      return l1 >= l2 && r1 <= r2;
+    if (l1 < l2 || r1 > r2) {
+      return false;
     }
-
-    if (type === "no-self") {
-      return l1 > l2 && r1 < r2;
-    }
-
     const dpt1 = this.getDpt(node1);
     const dpt2 = this.getDpt(node2);
 
-    if (type === "direct") {
-      return l1 > l2 && r1 < r2 && dpt1 === dpt2 + 1;
-    }
-
-    if (type === "no-self-no-direct") {
-      return l1 > l2 && r1 < r2 && dpt1 > dpt2 + 1;
-    }
-
-    if (type === "self-direct") {
-      return l1 >= l2 && r1 <= r2 && dpt1 <= dpt2 + 1;
-    }
-
-    throw new Error("unknown relation type: " + type);
+    return getTypeChild(dpt1 - dpt2, type);
   }
 
   public isParentOf(node1: T, node2: T, type?: RelationType) {
-    const l1 = this.getLft(node1);
-    const r1 = this.getRgt(node1);
-    const l2 = this.getLft(node2);
-    const r2 = this.getRgt(node2);
-
-    if (!type || type === "default") {
-      return l1 <= l2 && r1 >= r2;
-    }
-
-    if (type === "no-self") {
-      return l1 < l2 && r1 > r2;
-    }
-
-    const dpt1 = this.getDpt(node1);
-    const dpt2 = this.getDpt(node2);
-
-    if (type === "direct") {
-      return l1 < l2 && r1 > r2 && dpt1 === dpt2 - 1;
-    }
-
-    if (type === "no-self-no-direct") {
-      return l1 < l2 && r1 > r2 && dpt1 < dpt2 - 1;
-    }
-
-    if (type === "self-direct") {
-      return l1 <= l2 && r1 >= r2 && dpt1 >= dpt2 - 1;
-    }
-
-    throw new Error("unknown relation type: " + type);
+    return this.isChildOf(node2, node1, type);
   }
 
   public isSlibingOf(node1: T, node2: T) {

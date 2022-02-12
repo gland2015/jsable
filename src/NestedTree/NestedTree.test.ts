@@ -196,7 +196,6 @@ describe.each(eachTable)("NestedTree", (treeOp, util) => {
 
     expect(node1.lft).toEqual(1);
     expect(node1.rgt).toEqual(6);
-    
   });
 
   it("get", () => {
@@ -709,32 +708,32 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
 
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33))).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "indirect")).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(33), "self-direct")).toEqual(false);
 
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34))).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "indirect")).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(34), "self-direct")).toEqual(false);
 
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35))).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "direct")).toEqual(true);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "indirect")).toEqual(false);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(35), "self-direct")).toEqual(true);
 
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar))).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "no-self")).toEqual(false);
-    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "direct-indirect")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "indirect")).toEqual(false);
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(idTar), "self-direct")).toEqual(true);
 
     expect(nestedTree.node(idTar).isChildOf(35)).toEqual(true);
     expect(nestedTree.node(idTar).isChildOf(35, "direct")).toEqual(true);
-    expect(nestedTree.node(idTar).isChildOf(35, "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isChildOf(35, "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isChildOf(35, "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isChildOf(35, "indirect")).toEqual(false);
     expect(nestedTree.node(idTar).isChildOf(35, "self-direct")).toEqual(true);
 
     expect(nestedTree.node(idTar).isChildOf(nestedTree.node(1))).toEqual(false);
@@ -748,32 +747,32 @@ describe.each(eachTable)("NestedNode", (treeOp, util) => {
 
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33))).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "no-self")).toEqual(false);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "direct-indirect")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "indirect")).toEqual(false);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(33), "self-direct")).toEqual(true);
 
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34))).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "direct")).toEqual(true);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "no-self-no-direct")).toEqual(false);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "indirect")).toEqual(false);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(34), "self-direct")).toEqual(true);
 
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35))).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "indirect")).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(35), "self-direct")).toEqual(false);
 
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36))).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "indirect")).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(36), "self-direct")).toEqual(false);
 
     expect(nestedTree.node(idTar).isParentOf(36)).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(36, "direct")).toEqual(false);
-    expect(nestedTree.node(idTar).isParentOf(36, "no-self")).toEqual(true);
-    expect(nestedTree.node(idTar).isParentOf(36, "no-self-no-direct")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(36, "direct-indirect")).toEqual(true);
+    expect(nestedTree.node(idTar).isParentOf(36, "indirect")).toEqual(true);
     expect(nestedTree.node(idTar).isParentOf(36, "self-direct")).toEqual(false);
 
     expect(nestedTree.node(idTar).isParentOf(nestedTree.node(1))).toEqual(false);

@@ -208,6 +208,22 @@ abstract class TreeBase<T = any> {
   }
 
   public collect(colItemFn) {
+    if (!this.tree.length) {
+      if (this.entireValue) {
+        return this.entireValue.emptyValue;
+      }
+      if (this.entireKeys) {
+        let data = {};
+        let hasKey;
+        for (let key in this.entireKeys) {
+          hasKey = true;
+          data[key] = this.entireKeys[key].emptyValue;
+        }
+        return hasKey ? data : undefined;
+      }
+      return;
+    }
+
     // 保存向上搜索和向下搜索的函数信息
     const upInfo = {
       need: false,
@@ -806,171 +822,183 @@ class ItemAction<T> {
   private that: T;
   private set;
 
-  someChild(fn, options) {
-    const self = options?.self;
-    const shallow = options?.shallow;
-
-    const data = {
-      type: "up",
-      fnInfo: {
-        getValue: (o) => Boolean(o.val),
-        fn: (item, listData, childList) => {
-          let val;
-          let itemVal;
-          let hasImV;
-
-          if (shallow) {
-            val = listData.some((o, i) => {
-              if (o.hasImV) {
-                return o.itemVal;
-              }
-              return fn(childList[i]);
-            });
-          } else {
-            val = listData.some((o) => {
-              return o.val;
-            });
-          }
-
-          if (!val && self) {
-            itemVal = fn(item);
-            hasImV = true;
-            val = itemVal;
-          }
-          return { val, itemVal, hasImV };
-        },
-      },
-    };
-    this.set(data);
-    return this.that;
+  private some(list, fn) {
+    let val = false;
+    if (list) {
+      for (let i = 0; i < list.length; i++) {
+        if (fn(list[i])) {
+          val = true;
+          break;
+        }
+      }
+    }
+    return val;
   }
 
-  everyChild(fn, options) {
-    const self = options?.self;
-    const shallow = options?.shallow;
-
-    const data = {
-      type: "up",
-      fnInfo: {
-        getValue: (o) => Boolean(o.val),
-        fn: (item, listData, childList) => {
-          let val;
-          let itemVal;
-          let hasImV;
-
-          if (self) {
-            itemVal = fn(item);
-            hasImV = true;
-          }
-
-          if (!hasImV || itemVal) {
-            if (shallow) {
-              val = listData.every((o, i) => {
-                if (o.hasImV) {
-                  return o.itemVal;
-                }
-                return fn(childList[i]);
-              });
-            } else {
-              val = listData.every((o) => {
-                return o.val;
-              });
-            }
-          }
-
-          return { val, itemVal, hasImV };
-        },
-      },
-    };
-    this.set(data);
-    return this.that;
+  private every(list, fn) {
+    let val = true;
+    if (list) {
+      for (let i = 0; i < list.length; i++) {
+        if (!fn(list[i])) {
+          val = false;
+          break;
+        }
+      }
+    }
+    return val;
   }
 
-  reduceChild(rValueValue, itemToValue, options) {
-    const self = options?.self;
-    const shallow = options?.shallow;
+  public someChild(fn, type?: RelationType) {
+    let execFn;
+    if (type === "direct") {
+      execFn = (item, listData, childList) => {
+        return { val: this.some(childList, fn) };
+      };
+    } else if (type === "direct-indirect") {
+      execFn = (item, listData, childList) => {
+        let val = this.some(listData, (o) => o.val);
+        if (!val) {
+          val = this.some(childList, fn);
+        }
+        return { val };
+      };
+    } else if (type === "self-direct") {
+      execFn = (item, listData, childList) => {
+        let itemVal = fn(item);
+        if (itemVal) {
+          return { itemVal, val: true };
+        }
+        return { itemVal, val: this.some(listData, (o) => o.itemVal) };
+      };
+    } else if (type === "indirect") {
+      execFn = (item, listData, childList) => {
+        let val = this.some(listData, (o) => o.val || o.preVal);
+        if (!val) {
+          let preVal = this.some(childList, fn);
+          return { preVal, val };
+        }
+        return { val };
+      };
+    } else {
+      execFn = (item, listData, childList) => {
+        let val = this.some(listData, (o) => o.val);
+        if (!val) {
+          val = Boolean(fn(item));
+        }
+        return { val };
+      };
+    }
 
     const data = {
       type: "up",
       fnInfo: {
         getValue: (o) => o.val,
-        fn: (item, listData, childList) => {
-          let val;
-          let itemVal;
-          let hasImV;
-
-          if (self) {
-            itemVal = itemToValue(item);
-            hasImV = true;
-            val = itemVal;
-          }
-
-          listData.forEach((o, i) => {
-            let oVal;
-            if (shallow) {
-              oVal = o.hasImV ? o.itemVal : itemToValue(childList[i]);
-            } else {
-              if (self) {
-                oVal = o.val;
-              } else {
-                oVal = o.hasImV ? o.itemVal : itemToValue(childList[i]);
-                oVal = rValueValue(oVal, o.val);
-              }
-            }
-            if (i === 0) {
-              if (hasImV) {
-                val = rValueValue(itemVal, oVal);
-              } else {
-                val = oVal;
-              }
-            } else {
-              val = rValueValue(val, oVal);
-            }
-          });
-
-          return { val, itemVal, hasImV };
-        },
+        fn: execFn,
       },
     };
-
     this.set(data);
     return this.that;
   }
 
-  someParent(fn, options) {
-    const self = options?.self;
-    const shallow = options?.shallow;
+  public everyChild(fn, type?: RelationType) {
+    let execFn;
+    if (type === "direct") {
+      execFn = (item, listData, childList) => {
+        return { val: this.every(childList, fn) };
+      };
+    } else if (type === "direct-indirect") {
+      execFn = (item, listData, childList) => {
+        let val = this.every(listData, (o) => o.val);
+        if (val) {
+          val = this.every(childList, fn);
+        }
+        return { val };
+      };
+    } else if (type === "indirect") {
+      execFn = (item, listData, childList) => {
+        let val = this.every(listData, (o) => o.val && o.preVal);
+        if (!val) {
+          return { val };
+        }
+        let preVal = this.every(childList, fn);
+        return { val, preVal };
+      };
+    } else if (type === "self-direct") {
+      execFn = (item, listData, childList) => {
+        let itemVal = Boolean(fn(item));
+        let val = false;
+        if (itemVal) {
+          val = this.every(listData, (o) => o.itemVal);
+        }
+        return { val, itemVal };
+      };
+    } else {
+      execFn = (item, listData, childList) => {
+        let val = this.every(listData, (o) => o.val);
+        if (val) {
+          val = Boolean(fn(item));
+        }
+        return { val };
+      };
+    }
+
+    const data = {
+      type: "up",
+      fnInfo: {
+        getValue: (o) => Boolean(o.val),
+        fn: execFn,
+      },
+    };
+    this.set(data);
+    return this.that;
+  }
+
+  public someParent(fn, type?: RelationType) {
+    let execFn;
+    if (type === "direct") {
+      execFn = (item, pData, pItem) => {
+        return { val: pItem ? fn(pItem) : false };
+      };
+    } else if (type === "direct-indirect") {
+      execFn = (item, pData, pItem) => {
+        let val = pData?.val;
+        if (val) {
+          return { val };
+        }
+        return { val: pItem ? fn(pItem) : false };
+      };
+    } else if (type === "indirect") {
+      execFn = (item, pData, pItem) => {
+        let val = pData?.val || pData?.preVal;
+        if (val) {
+          return { val };
+        }
+        return { val, preVal: pItem ? fn(pItem) : false };
+      };
+    } else if (type === "self-direct") {
+      execFn = (item, pData, pItem) => {
+        let itemVal = fn(item);
+        if (itemVal) {
+          return { val: true, itemVal };
+        }
+
+        return { val: pData?.val, itemVal };
+      };
+    } else {
+      execFn = (item, pData, pItem) => {
+        let val = pData?.val;
+        if (val) {
+          return { val };
+        }
+        return { val: fn(item) };
+      };
+    }
 
     const data = {
       type: "down",
       fnInfo: {
         getValue: (o) => Boolean(o.val),
-        fn: (item, pData, pItem) => {
-          let val = false;
-          let itemVal;
-          let hasImV;
-
-          if (self) {
-            itemVal = fn(item);
-            hasImV = true;
-          }
-
-          if (itemVal) {
-            val = true;
-          } else {
-            if (shallow) {
-              if (pData) {
-                val = pData.hasImV ? pData.itemVal : fn(pItem);
-              } else {
-                val = false;
-              }
-            } else {
-              val = pData ? pData.val : false;
-            }
-          }
-
-          return { val, itemVal, hasImV };
-        },
+        fn: execFn,
       },
     };
 
@@ -978,76 +1006,67 @@ class ItemAction<T> {
     return this.that;
   }
 
-  everyParent(fn, options) {
-    const self = options?.self;
-    const shallow = options?.shallow;
+  public everyParent(fn, type?: RelationType) {
+    let execFn;
+    if (type === "direct") {
+      execFn = (item, pData, pItem) => {
+        return { val: pItem ? fn(pItem) : true };
+      };
+    } else if (type === "direct-indirect") {
+      execFn = (item, pData, pItem) => {
+        let val;
+        if (pItem) {
+          val = pData.val && fn(pItem);
+        } else {
+          val = true;
+        }
+        return { val };
+      };
+    } else if (type === "indirect") {
+      execFn = (item, pData, pItem) => {
+        if (pData) {
+          if (pData.val) {
+            if (pData.ppItem) {
+              return { val: fn(pData.ppItem), ppItem: pItem };
+            }
+            return { val: true, ppItem: pItem };
+          }
+          return { val: false };
+        }
+        return { val: true, ppItem: pItem };
+      };
+    } else if (type === "self-direct") {
+      execFn = (item, pData, pItem) => {
+        let itemVal = fn(item);
+        if (!itemVal) {
+          return { val: false, itemVal: false };
+        }
+
+        if (pData) {
+          if (!pData.itemVal) {
+            return { val: false, itemVal };
+          }
+        }
+
+        return { val: true, itemVal: true };
+      };
+    } else {
+      execFn = (item, pData, pItem) => {
+        if (pData) {
+          if (!pData.val) {
+            return { val: false };
+          }
+        }
+
+        return { val: fn(item) };
+      };
+    }
 
     const data = {
       type: "down",
       fnInfo: {
         getValue: (o) => Boolean(o.val),
-        fn: (item, pData, pItem) => {
-          let val;
-          let itemVal;
-          let hasImV;
-
-          if (self) {
-            itemVal = fn(item);
-            hasImV = true;
-          }
-
-          if (!self || itemVal) {
-            if (shallow) {
-              if (pData) {
-                val = pData.hasImV ? pData.itemVal : fn(pItem);
-              } else {
-                val = true;
-              }
-            } else {
-              val = pData ? pData.val : true;
-            }
-          }
-
-          return { val, itemVal, hasImV };
-        },
-      },
-    };
-
-    this.set(data);
-    return this.that;
-  }
-
-  reduceParent(rValueValue, itemToValue, options) {
-    const self = options?.self;
-    const shallow = options?.shallow;
-
-    const data = {
-      type: "down",
-      fnInfo: {
-        getValue: (o) => o.val,
-        fn: (item, pData, pItem) => {
-          let val;
-          let itemVal;
-          let hasImV;
-
-          if (self) {
-            itemVal = itemToValue(item);
-            hasImV = true;
-          }
-
-          if (pData) {
-            let pItVal = pData.hasImV ? pData.itemVal : itemToValue(pItem);
-            if (shallow) {
-              val = self ? rValueValue(itemVal, pItVal) : pItVal;
-            } else {
-              val = self ? rValueValue(itemVal, pData.val) : rValueValue(pItVal, pData.val);
-            }
-          } else {
-            val = itemVal;
-          }
-
-          return { val, itemVal, hasImV };
-        },
+        fn: execFn,
       },
     };
 
@@ -1066,6 +1085,7 @@ class EntireAction<T> {
 
   some(fn) {
     const data = {
+      emptyValue: false,
       fnInfo: {
         fn: (item, args1, args2, context) => {
           if (fn(item)) {
@@ -1082,6 +1102,7 @@ class EntireAction<T> {
 
   every(fn) {
     const data = {
+      emptyValue: true,
       fnInfo: {
         fn: (item, args1, args2, context) => {
           if (fn(item)) {
@@ -1101,6 +1122,7 @@ class EntireAction<T> {
     let value = initValue;
 
     const data = {
+      emptyValue: value,
       fnInfo: {
         fn: (item, args1, args2, context) => {
           value = fn(item, value);

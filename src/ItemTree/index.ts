@@ -42,6 +42,13 @@ class TreeCore<T = any> {
 
   public getId: (o: T) => string | number;
   public getChild: (o: T) => Array<T>;
+
+  public map: {
+    [key: string]: {
+      pId: string | number;
+      data: T;
+    };
+  };
 }
 
 abstract class TreeBase<T = any> {
@@ -49,12 +56,6 @@ abstract class TreeBase<T = any> {
 
   protected core: TreeCore<T>;
   protected abstract get tree(): Array<T>;
-  protected map: {
-    [key: string]: {
-      pId: string | number;
-      data: T;
-    };
-  };
 
   public iterat(fn: iteratFn<T>, initData?) {
     // 父在子之前遍历
@@ -372,8 +373,9 @@ abstract class TreeBase<T = any> {
               return null;
             }
             const fnInfo = itemInfo.fnInfo;
+
             // 获取计算结果
-            const fn_value = fnInfo.fn(item, listData ? listData.map((o) => o[i].fnDataList) : null, children, itemInfo.context);
+            const fn_value = fnInfo.fn(item, listData && listData.length ? listData.map((o) => o.fnDataList[i]) : null, children, itemInfo.context);
 
             let value = fn_value;
             // 获取保存结果
@@ -383,7 +385,7 @@ abstract class TreeBase<T = any> {
             if (itemInfo.saveEntireData) {
               itemInfo.saveEntireData(value);
             } else {
-              itData = itemInfo.setItemData(value, itData);
+              itData = itemInfo.saveItemData(value, itData);
             }
 
             return fn_value;
@@ -505,9 +507,18 @@ abstract class TreeBase<T = any> {
   public findOne(info: string | number | ((o: T) => boolean)): T {
     let fn;
     if (typeof info !== "function") {
-      if (this.map) {
-        let item = this.map[info];
-        return item ? item.data : null;
+      if (this.core.map) {
+        let item = this.core.map[info];
+        if (!item) {
+          return null;
+        }
+        if (this instanceof ItemNode) {
+          if (this._isParentOf(this.id, info)) {
+            return item.data;
+          }
+          return null;
+        }
+        return item.data;
       } else {
         fn = (o) => {
           return this.core.getId(o) === info;
@@ -527,62 +538,12 @@ abstract class TreeBase<T = any> {
     return r;
   }
 
-  /**
-   * 设置或更新索引
-   */
-  public setIndex(obj?: T) {
-    let tree = this.tree;
-    if (obj) {
-      this.removeIndex(this.core.getId(obj));
-      tree = [obj];
-    }
-
-    if (!this.map) {
-      this.map = {};
-    }
-
-    const set = (list: Array<T>, pId) => {
-      if (list && list.length) {
-        for (let i = 0; i < list.length; i++) {
-          let o = list[i];
-          let id = this.core.getId(o);
-          let childs = this.core.getChild(o);
-
-          this.map[id] = {
-            pId,
-            data: o,
-          };
-
-          set(childs, id);
-        }
-      }
-    };
-    set(tree, null);
-  }
-
-  /**
-   * 移除索引
-   */
-  public removeIndex(id?: string | number) {
-    if (id === undefined || id === null) {
-      this.map = null;
-      return;
-    }
-
-    const remove = (id) => {
-      let obj = this.map[id];
-      if (obj) {
-        delete this.map[id];
-        let childs = this.core.getChild(obj.data);
-        if (childs && childs.length) {
-          for (let i = 0; i < childs.length; i++) {
-            remove(this.core.getId(childs[i]));
-          }
-        }
-      }
-    };
-
-    remove(id);
+  public flat(): Array<T> {
+    let list = [];
+    this.iterat((item) => {
+      list.push(item);
+    });
+    return list;
   }
 
   protected _isParentOf(a: Id, b: Id, type?: RelationType) {
@@ -594,13 +555,13 @@ abstract class TreeBase<T = any> {
       return false;
     }
 
-    if (this.map) {
+    if (this.core.map) {
       let path = [];
       let id = b;
       let hasFindA = false;
       while (id !== null && id !== undefined) {
         path.push(id);
-        let p = this.map[id];
+        let p = this.core.map[id];
         if (!p) {
           break;
         }
@@ -652,9 +613,9 @@ abstract class TreeBase<T = any> {
       return true;
     }
 
-    if (this.map) {
-      let pa = this.map[a];
-      let pb = this.map[b];
+    if (this.core.map) {
+      let pa = this.core.map[a];
+      let pb = this.core.map[b];
       return Boolean(pa && pb && pa.pId === pb.pId);
     } else {
       let r = false;
@@ -728,6 +689,64 @@ export class ItemTree<T = any> extends TreeBase<T> {
   }
 
   /**
+   * 设置或更新索引
+   */
+  public setIndex(obj?: T) {
+    let tree = this.tree;
+    if (obj) {
+      this.removeIndex(this.core.getId(obj));
+      tree = [obj];
+    }
+
+    if (!this.core.map) {
+      this.core.map = {};
+    }
+
+    const set = (list: Array<T>, pId) => {
+      if (list && list.length) {
+        for (let i = 0; i < list.length; i++) {
+          let o = list[i];
+          let id = this.core.getId(o);
+          let childs = this.core.getChild(o);
+
+          this.core.map[id] = {
+            pId,
+            data: o,
+          };
+
+          set(childs, id);
+        }
+      }
+    };
+    set(tree, null);
+  }
+
+  /**
+   * 移除索引
+   */
+  public removeIndex(id?: string | number) {
+    if (id === undefined || id === null) {
+      this.core.map = null;
+      return;
+    }
+
+    const remove = (id) => {
+      let obj = this.core.map[id];
+      if (obj) {
+        delete this.core.map[id];
+        let childs = this.core.getChild(obj.data);
+        if (childs && childs.length) {
+          for (let i = 0; i < childs.length; i++) {
+            remove(this.core.getId(childs[i]));
+          }
+        }
+      }
+    };
+
+    remove(id);
+  }
+
+  /**
    * 返回一个树节点
    */
   public node(id: Id | T | ((o: T) => boolean)) {
@@ -743,9 +762,6 @@ export class ItemTree<T = any> extends TreeBase<T> {
     }
 
     let node = new ItemNode<T>(data, this.core);
-    if (this.map) {
-      node.setIndex();
-    }
     return node;
   }
 
@@ -768,6 +784,10 @@ export class ItemTree<T = any> extends TreeBase<T> {
    */
   public isSlibingOf(a: Id, b: Id) {
     return this._isSlibingOf(a, b);
+  }
+
+  public size(): number {
+    return this.flat().length;
   }
 }
 
@@ -811,6 +831,45 @@ class ItemNode<T = any> extends TreeBase<T> {
     }
     return this._isSlibingOf(this.id, b);
   }
+
+  public childList(type?: RelationType): Array<T> {
+    if (!type || type === "default") {
+      return this.flat();
+    }
+
+    if (type === "direct") {
+      return this.core.getChild(this.nodeData[0]) || [];
+    }
+
+    if (type === "direct-indirect") {
+      let list = this.flat();
+      list.shift();
+      return list;
+    }
+
+    if (type === "indirect") {
+      let list = [];
+      this.iterat((item, pData, context) => {
+        if (context.path.length > 2) {
+          list.push(item);
+        }
+      });
+      return list;
+    }
+
+    if (type === "self-direct") {
+      let list = this.core.getChild(this.nodeData[0]) || [];
+      list = list.concat();
+      list.unshift(this.nodeData[0]);
+      return list;
+    }
+
+    return this.childList();
+  }
+
+  public childNum(type?: RelationType): number {
+    return this.childList().length;
+  }
 }
 
 class ItemAction<T> {
@@ -843,6 +902,16 @@ class ItemAction<T> {
           val = false;
           break;
         }
+      }
+    }
+    return val;
+  }
+
+  private count(list, fn) {
+    let val = 0;
+    if (list) {
+      for (let i = 0; i < list.length; i++) {
+        val += fn(list[i]);
       }
     }
     return val;
@@ -949,6 +1018,68 @@ class ItemAction<T> {
         fn: execFn,
       },
     };
+    this.set(data);
+    return this.that;
+  }
+
+  public countChildValue(fn: (o) => number, type?: RelationType) {
+    let execFn;
+    if (type === "direct") {
+      execFn = (item, listData, childList) => {
+        return { val: this.count(childList, fn) };
+      };
+    } else if (type === "direct-indirect") {
+      execFn = (item, listData, childList) => {
+        let val = this.count(listData, (o) => o.val);
+        val += this.count(childList, fn);
+        return { val };
+      };
+    } else if (type === "indirect") {
+      execFn = (item, listData, childList) => {
+        let val = this.count(listData, (o) => o.val + (o.preVal || 0));
+        let preVal = this.count(childList, fn);
+        return { val, preVal };
+      };
+    } else if (type === "self-direct") {
+      execFn = (item, listData, childList) => {
+        let itemVal = fn(item);
+        let val = this.count(listData, (o) => o.itemVal);
+        return { val, itemVal };
+      };
+    } else {
+      execFn = (item, listData, childList) => {
+        let val = fn(item);
+        val += this.count(listData, (o) => o.val);
+        return { val };
+      };
+    }
+
+    const data = {
+      type: "up",
+      fnInfo: {
+        getValue: (o) => o.val,
+        fn: execFn,
+      },
+    };
+    this.set(data);
+    return this.that;
+  }
+
+  public countChildNum(type?: RelationType) {
+    return this.countChildValue((o) => 1, type);
+  }
+
+  public self(fn) {
+    const data = {
+      type: "down",
+      fnInfo: {
+        getValue: (o) => o,
+        fn: (item, pData, pItem) => {
+          return fn(item);
+        },
+      },
+    };
+
     this.set(data);
     return this.that;
   }
@@ -1072,6 +1203,54 @@ class ItemAction<T> {
 
     this.set(data);
     return this.that;
+  }
+
+  public countParentValue(fn, type?: RelationType) {
+    let execFn;
+    if (type === "direct") {
+      execFn = (item, pData, pItem) => {
+        return { val: pItem ? fn(pItem) : 0 };
+      };
+    } else if (type === "direct-indirect") {
+      execFn = (item, pData, pItem) => {
+        if (pData) {
+          return { val: pData.val + fn(item) };
+        }
+        return { val: 0 };
+      };
+    } else if (type === "indirect") {
+      execFn = (item, pData, pItem) => {
+        let val = (pData?.val || 0) + (pData?.preVal || 0);
+        return { val, preVal: pItem ? fn(pItem) : 0 };
+      };
+    } else if (type === "self-direct") {
+      execFn = (item, pData, pItem) => {
+        let itemVal = fn(item);
+        let val = itemVal + (pData?.itemVal || 0);
+
+        return { val, itemVal };
+      };
+    } else {
+      execFn = (item, pData, pItem) => {
+        let val = (pData?.val || 0) + fn(item);
+        return { val };
+      };
+    }
+
+    const data = {
+      type: "down",
+      fnInfo: {
+        getValue: (o) => Boolean(o.val),
+        fn: execFn,
+      },
+    };
+
+    this.set(data);
+    return this.that;
+  }
+
+  public countParentNum(type?: RelationType) {
+    return this.countParentValue((o) => 1, type);
   }
 }
 

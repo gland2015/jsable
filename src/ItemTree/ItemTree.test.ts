@@ -1,4 +1,5 @@
 import { ItemTree } from ".";
+import { getTypeChild, RelationType } from "../treeUtils";
 
 describe("ItemBase", () => {
   it("iterat", () => {
@@ -105,12 +106,66 @@ describe("ItemBase", () => {
     });
     expect(list).toEqual([]);
   });
+});
+
+describe("Action", () => {
+  let relList: Array<RelationType> = [null, "direct", "direct", "direct-indirect", "indirect", "self-direct"];
 
   it("collect someChild", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    let item3Path = [0, 0, 0];
+
+    relList.forEach(function (type) {
+      tree.itemData("1").someChild(function (o) {
+        return o.id === 3;
+      }, type);
+      tree.collect(function (item, data) {
+        let isChild = getIsChildOf(item3Path, item.path, type);
+        if (isChild) {
+          expect(data["1"]).toEqual(true);
+        } else {
+          expect(data["1"]).toEqual(false);
+        }
+      });
+    });
+  });
+
+  it("collect everyChild", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+    let item3Path = [0, 0, 0];
+    let item4Path = [0, 0, 1];
+    let item5Path = [0, 1];
+
+    relList.forEach(function (type) {
+      let fn = function (o) {
+        return o.id === 3 || o.id === 4 || o.id === 2;
+      };
+      tree.itemData("1").everyChild(fn, type);
+
+      tree.collect(function (item, data) {
+        let childList = tree.node(item).childList(type);
+        let bool = childList.every(fn);
+
+        if (bool !== data["1"]) {
+          console.log("1");
+        }
+
+        expect(bool).toEqual(data["1"]);
+      });
+    });
   });
 });
+
+function getIsChildOf(path1, path2, type?: RelationType) {
+  for (let i = 0; i < path2.length; i++) {
+    if (path2[i] !== path1[i]) {
+      return false;
+    }
+  }
+  return getTypeChild(path1.length - path2.length, type);
+}
 
 function getTestTree() {
   let tree = [

@@ -38,7 +38,7 @@ export type RelationType = "default" | "direct" | "self-direct" | "direct-indire
  * 已经是子或孙或相等判断具体类型
  * level: 子到父的距离，相等是0
  */
-export function getTypeChild(level: number, type: RelationType) {
+export function getTypeChild(level: number, type?: RelationType) {
   return getChild_(level, type);
 }
 

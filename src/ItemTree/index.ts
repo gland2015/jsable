@@ -39,16 +39,15 @@ class TreeCore<T = any> {
   }
 
   public tree: Array<T>;
-
-  public getId: (o: T) => string | number;
-  public getChild: (o: T) => Array<T>;
-
   public map: {
     [key: string]: {
       pId: string | number;
       data: T;
     };
   };
+
+  public getId: (o: T) => string | number;
+  public getChild: (o: T) => Array<T>;
 }
 
 abstract class TreeBase<T = any> {
@@ -57,7 +56,7 @@ abstract class TreeBase<T = any> {
   protected core: TreeCore<T>;
   protected abstract get tree(): Array<T>;
 
-  public iterat(fn: iteratFn<T>, initData?) {
+  public iterat(fn: iteratFn<T>, initData?, tree: Array<T> = this.tree) {
     // 父在子之前遍历
     let path = [0];
     let isEnd = false;
@@ -97,10 +96,10 @@ abstract class TreeBase<T = any> {
       }
     };
 
-    iterator(this.tree, initData, path);
+    iterator(tree, initData, path);
   }
 
-  public iteratUp(fn: iteratUpFn<T>) {
+  public iteratUp(fn: iteratUpFn<T>, tree: Array<T> = this.tree) {
     // 子在父之前遍历
     let isEnd = false;
     let isStopUp = false;
@@ -161,10 +160,10 @@ abstract class TreeBase<T = any> {
       return result;
     };
 
-    return iterator(this.tree, path);
+    return iterator(tree, path);
   }
 
-  public itemData(key) {
+  public itemData(key?) {
     const that = this;
     const set = (data) => {
       if (key) {
@@ -176,7 +175,7 @@ abstract class TreeBase<T = any> {
     return new ItemAction(that, set);
   }
 
-  public unItemData(key) {
+  public unItemData(key?) {
     if (key) {
       delete this.itemKeys[key];
     } else {
@@ -186,7 +185,7 @@ abstract class TreeBase<T = any> {
     return this;
   }
 
-  public entireData(key) {
+  public entireData(key?) {
     const that = this;
     const set = (data) => {
       if (key) {
@@ -198,7 +197,7 @@ abstract class TreeBase<T = any> {
     return new EntireAction(that, set);
   }
 
-  public unEntireData(key) {
+  public unEntireData(key?) {
     if (key) {
       delete this.entireKeys[key];
     } else {
@@ -208,7 +207,7 @@ abstract class TreeBase<T = any> {
     return this;
   }
 
-  public collect(colItemFn) {
+  public collect(colItemFn?) {
     if (!this.tree.length) {
       if (this.entireValue) {
         return this.entireValue.emptyValue;
@@ -410,10 +409,10 @@ abstract class TreeBase<T = any> {
               }
 
               // 保存结果
-              if (itemInfo.setEntireValue) {
-                itemInfo.setEntireValue(value);
+              if (itemInfo.saveEntireData) {
+                itemInfo.saveEntireData(value);
               } else {
-                itData = itemInfo.setItemValue(value, itData);
+                itData = itemInfo.saveItemData(value, itData);
               }
 
               return fn_value;
@@ -470,10 +469,10 @@ abstract class TreeBase<T = any> {
             value = fnInfo.getValue(value);
           }
 
-          if (itemInfo.setEntireValue) {
-            itemInfo.setEntireValue(value);
+          if (itemInfo.saveEntireData) {
+            itemInfo.saveEntireData(value);
           } else {
-            itData = itemInfo.setItemValue(value, itData);
+            itData = itemInfo.saveItemData(value, itData);
           }
 
           return fn_data;
@@ -538,12 +537,113 @@ abstract class TreeBase<T = any> {
     return r;
   }
 
+  /**
+   * 返回一个树节点
+   */
+  public node(id: Id | T | ((o: T) => boolean)) {
+    let data: T;
+    let type = typeof id;
+    if (type === "object") {
+      data = id as any;
+    } else {
+      data = this.findOne(id as any);
+      if (!data) {
+        throw new Error("not find node: " + id);
+      }
+    }
+
+    let node = new ItemNode<T>(data, this.core);
+    return node;
+  }
+
   public flat(): Array<T> {
     let list = [];
     this.iterat((item) => {
       list.push(item);
     });
     return list;
+  }
+
+  /**
+   * 从上往下排列
+   */
+  protected _findParents(id: string | number, skip = 0, limit = null) {
+    let list: Array<T> = [];
+    if (this.core.map) {
+      let item = this.core.map[id];
+      while (item.pId !== null && item.pId !== undefined) {
+        if (skip > 0) {
+          skip--;
+        } else {
+          list.unshift(item.data);
+          if (limit !== null) {
+            limit--;
+            if (!limit) {
+              break;
+            }
+          }
+        }
+        item = this.core.map[item.pId];
+        if (!item) {
+          break;
+        }
+      }
+    } else {
+      let path;
+      this.iterat(
+        (item, pData, context) => {
+          if (this.core.getId(item) === id) {
+            path = context.path.concat();
+            context.end();
+          }
+        },
+        null,
+        this.core.tree
+      );
+
+      if (path) {
+        let treeList = this.core.tree;
+        let item;
+        for (let i = 0; i < path.length; i++) {
+          item = treeList[path[i]];
+          list.push(item);
+          treeList = this.core.getChild(item);
+        }
+        while (skip > 0) {
+          skip--;
+          list.pop();
+        }
+        if (limit) {
+          list = list.slice(-1 * limit);
+        }
+      }
+    }
+
+    return list;
+  }
+
+  protected _parentList(id, type?: RelationType) {
+    if (!type || type === "default") {
+      return this._findParents(id, 0, null);
+    }
+
+    if (type === "direct") {
+      return this._findParents(id, 1, 1);
+    }
+
+    if (type === "direct-indirect") {
+      return this._findParents(id, 1, null);
+    }
+
+    if (type === "indirect") {
+      return this._findParents(id, 2, null);
+    }
+
+    if (type === "self-direct") {
+      return this._findParents(id, 0, 2);
+    }
+
+    return this._parentList(id);
   }
 
   protected _isParentOf(a: Id, b: Id, type?: RelationType) {
@@ -747,25 +847,6 @@ export class ItemTree<T = any> extends TreeBase<T> {
   }
 
   /**
-   * 返回一个树节点
-   */
-  public node(id: Id | T | ((o: T) => boolean)) {
-    let data: T;
-    let type = typeof id;
-    if (type === "object") {
-      data = id as any;
-    } else {
-      data = this.findOne(id as any);
-      if (!data) {
-        throw new Error("not find node: " + id);
-      }
-    }
-
-    let node = new ItemNode<T>(data, this.core);
-    return node;
-  }
-
-  /**
    * 判断a是否是b的父
    */
   public isParentOf(a: Id, b: Id, type?: RelationType) {
@@ -788,6 +869,10 @@ export class ItemTree<T = any> extends TreeBase<T> {
 
   public size(): number {
     return this.flat().length;
+  }
+
+  public findParents(id: Id, type?: RelationType): Array<T> {
+    return this._parentList(id, type);
   }
 }
 
@@ -869,6 +954,17 @@ class ItemNode<T = any> extends TreeBase<T> {
 
   public childNum(type?: RelationType): number {
     return this.childList().length;
+  }
+
+  /**
+   * 从上往下的列表
+   */
+  public parentList(type?: RelationType): Array<T> {
+    return this._parentList(this.id, type);
+  }
+
+  public parentNum(type?: RelationType): number {
+    return this.parentList().length;
   }
 }
 
@@ -1043,7 +1139,7 @@ class ItemAction<T> {
     } else if (type === "self-direct") {
       execFn = (item, listData, childList) => {
         let itemVal = fn(item);
-        let val = this.count(listData, (o) => o.itemVal);
+        let val = itemVal + this.count(listData, (o) => o.itemVal);
         return { val, itemVal };
       };
     } else {
@@ -1113,7 +1209,7 @@ class ItemAction<T> {
           return { val: true, itemVal };
         }
 
-        return { val: pData?.val, itemVal };
+        return { val: pData?.itemVal, itemVal };
       };
     } else {
       execFn = (item, pData, pItem) => {
@@ -1240,7 +1336,7 @@ class ItemAction<T> {
     const data = {
       type: "down",
       fnInfo: {
-        getValue: (o) => Boolean(o.val),
+        getValue: (o) => o.val,
         fn: execFn,
       },
     };
@@ -1297,14 +1393,14 @@ class EntireAction<T> {
     return this.that;
   }
 
-  reduce(fn, initValue) {
+  reduce(fn, initValue = null) {
     let value = initValue;
 
     const data = {
       emptyValue: value,
       fnInfo: {
         fn: (item, args1, args2, context) => {
-          value = fn(item, value);
+          value = fn(value, item);
           return value;
         },
       },

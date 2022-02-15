@@ -134,9 +134,6 @@ describe("Action", () => {
   it("collect everyChild", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
-    let item3Path = [0, 0, 0];
-    let item4Path = [0, 0, 1];
-    let item5Path = [0, 1];
 
     relList.forEach(function (type) {
       let fn = function (o) {
@@ -155,6 +152,138 @@ describe("Action", () => {
         expect(bool).toEqual(data["1"]);
       });
     });
+  });
+
+  it("collect someParent", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    relList.forEach(function (type) {
+      let fn = function (o) {
+        return o.id === 1;
+      };
+      tree.itemData("1").someParent(fn, type);
+
+      tree.collect(function (item, data) {
+        let list = tree.node(item).parentList(type);
+        let bool = list.some(fn);
+
+        if (bool !== data["1"]) {
+          console.log("1");
+          tree.node(item).parentList(type);
+        }
+
+        expect(bool).toEqual(data["1"]);
+      });
+    });
+  });
+
+  it("collect everyParent", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    relList.forEach(function (type) {
+      let fn = function (o) {
+        return o.id === 1;
+      };
+      tree.itemData("1").everyParent(fn, type);
+
+      tree.collect(function (item, data) {
+        let list = tree.node(item).parentList(type);
+        let bool = list.every(fn);
+
+        if (bool !== data["1"]) {
+          console.log("1");
+          tree.node(item).parentList(type);
+        }
+
+        expect(bool).toEqual(data["1"]);
+      });
+    });
+  });
+
+  it("collect countChildNum", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    relList.forEach(function (type) {
+      tree.itemData("1").countChildNum(type);
+
+      tree.collect(function (item, data) {
+        let list = tree.node(item).childList(type);
+        let bool = list.length;
+
+        if (bool !== data["1"]) {
+          console.log("1");
+        }
+
+        expect(bool).toEqual(data["1"]);
+      });
+    });
+  });
+
+  it("collect countParentNum", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    relList.forEach(function (type) {
+      tree.itemData("1").countParentNum(type);
+
+      tree.collect(function (item, data) {
+        let list = tree.node(item).parentList(type);
+        let bool = list.length;
+
+        if (bool !== data["1"]) {
+          console.log("1");
+        }
+
+        expect(bool).toEqual(data["1"]);
+      });
+    });
+  });
+
+  it("collect some", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    tree.entireData("1").some(function (o) {
+      return o.id === 1;
+    });
+
+    let data = tree.collect();
+    expect(data["1"]).toEqual(true);
+
+    tree.unEntireData();
+    tree.entireData().some(function (o) {
+      return o.id === 9999;
+    });
+
+    data = tree.collect();
+    expect(data).toEqual(false);
+  });
+
+  it("collect every", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    tree.entireData("1").every(function (o) {
+      return o.id < 10000;
+    });
+
+    let data = tree.collect();
+    expect(data["1"]).toEqual(true);
+  });
+
+  it("collect reduce", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+
+    tree.entireData("1").reduce(function (value, item) {
+      return value + 1;
+    }, 0);
+
+    let data = tree.collect();
+    expect(data["1"]).toEqual(tree.size());
   });
 });
 

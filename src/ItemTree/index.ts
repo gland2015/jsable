@@ -420,12 +420,9 @@ abstract class TreeBase<T = any> {
 
             // 向下调用, 如果还存在向下函数
             if (downInfo.num) {
-              downInfo.list.forEach((itemInfo, i) => {
-                if (!itemInfo) {
-                  return null;
-                }
-                return listData[i].callback(downData, pItem);
-              });
+              for (let i = 0; i < listData.length; i++) {
+                listData[i].callback(downData, item);
+              }
             }
 
             if (totalInfo.hasItemFn) {
@@ -571,7 +568,7 @@ abstract class TreeBase<T = any> {
     let list: Array<T> = [];
     if (this.core.map) {
       let item = this.core.map[id];
-      while (item.pId !== null && item.pId !== undefined) {
+      while (1) {
         if (skip > 0) {
           skip--;
         } else {
@@ -582,6 +579,9 @@ abstract class TreeBase<T = any> {
               break;
             }
           }
+        }
+        if (item.pId === null || item.pId === undefined) {
+          break;
         }
         item = this.core.map[item.pId];
         if (!item) {
@@ -667,7 +667,7 @@ abstract class TreeBase<T = any> {
         }
         id = p.pId;
         if (path.indexOf(id) !== -1) {
-          break;
+          return false;
         }
         if (id === a) {
           hasFindA = true;
@@ -679,7 +679,7 @@ abstract class TreeBase<T = any> {
         return false;
       }
 
-      return getTypeChild(path.length + 1, type);
+      return getTypeChild(path.length, type);
     } else {
       let r = false;
       let hasFindA = false;

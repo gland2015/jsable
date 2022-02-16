@@ -1,10 +1,13 @@
 import { ItemTree } from ".";
 import { getTypeChild, RelationType } from "../treeUtils";
 
-describe("ItemBase", () => {
+describe.each([false, true])("ItemBase", (isSetIndex) => {
   it("iterat", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
     let order = 1;
     tree.iterat(function (item, pData = null, context) {
       const data = item.iterat;
@@ -19,6 +22,10 @@ describe("ItemBase", () => {
   it("iterat stop", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
     let order = 1;
     tree.iterat(function (item, pData = null, context) {
       const data = item.iterat;
@@ -38,6 +45,10 @@ describe("ItemBase", () => {
   it("iterat end", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
     let order = 1;
     tree.iterat(function (item, pData = null, context) {
       const data = item.iterat;
@@ -57,6 +68,10 @@ describe("ItemBase", () => {
   it("iteratUp", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
     let order = 1;
     let list = tree.iteratUp(function (item, subData, context) {
       const data = item.iteratUp;
@@ -72,6 +87,10 @@ describe("ItemBase", () => {
   it("iteratUp stop", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
     let order = 1;
     let list = tree.iteratUp(function (item, subData, context) {
       const data = item.iteratUp;
@@ -91,6 +110,10 @@ describe("ItemBase", () => {
   it("iteratUp end", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
     let order = 1;
     let list = tree.iteratUp(function (item, subData, context) {
       const data = item.iteratUp;
@@ -108,12 +131,16 @@ describe("ItemBase", () => {
   });
 });
 
-describe("Action", () => {
+describe.each([false, true])("Action", (isSetIndex) => {
   let relList: Array<RelationType> = [null, "direct", "direct", "direct-indirect", "indirect", "self-direct"];
 
   it("collect someChild", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
     let item3Path = [0, 0, 0];
 
     relList.forEach(function (type) {
@@ -134,6 +161,9 @@ describe("Action", () => {
   it("collect everyChild", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     relList.forEach(function (type) {
       let fn = function (o) {
@@ -157,6 +187,9 @@ describe("Action", () => {
   it("collect someParent", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     relList.forEach(function (type) {
       let fn = function (o) {
@@ -181,6 +214,9 @@ describe("Action", () => {
   it("collect everyParent", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     relList.forEach(function (type) {
       let fn = function (o) {
@@ -205,6 +241,9 @@ describe("Action", () => {
   it("collect countChildNum", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     relList.forEach(function (type) {
       tree.itemData("1").countChildNum(type);
@@ -225,6 +264,9 @@ describe("Action", () => {
   it("collect countParentNum", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     relList.forEach(function (type) {
       tree.itemData("1").countParentNum(type);
@@ -245,6 +287,9 @@ describe("Action", () => {
   it("collect some", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     tree.entireData("1").some(function (o) {
       return o.id === 1;
@@ -265,6 +310,9 @@ describe("Action", () => {
   it("collect every", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     tree.entireData("1").every(function (o) {
       return o.id < 10000;
@@ -277,6 +325,9 @@ describe("Action", () => {
   it("collect reduce", () => {
     let treeData = getTestTree();
     let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
 
     tree.entireData("1").reduce(function (value, item) {
       return value + 1;
@@ -284,6 +335,106 @@ describe("Action", () => {
 
     let data = tree.collect();
     expect(data["1"]).toEqual(tree.size());
+  });
+
+  it("collect total", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
+    let item3Path = [0, 0, 0];
+    let fn_everyChild = function (o) {
+      return o.id === 3 || o.id === 4;
+    };
+    let fn_someParent = function (o) {
+      return o.id === 1;
+    };
+    let fn_everyParent = function (o) {
+      return o.id === 1;
+    };
+
+    relList.forEach(function (type) {
+      tree
+        .itemData("someChild")
+        .someChild(function (o) {
+          return o.id === 3;
+        }, type)
+        .itemData("everyChild")
+        .everyChild(fn_everyChild, type)
+        .itemData("someParent")
+        .someParent(fn_someParent, type)
+        .itemData("everyParent")
+        .everyParent(fn_everyParent, type)
+        .entireData("reduce")
+        .reduce((value, item) => value + 1, 0)
+        .entireData("some")
+        .some((item) => item.id === 9999);
+
+      let entireData = tree.collect(function (item, data) {
+        let childList = tree.node(item).childList(type);
+        let parentList = tree.node(item).parentList(type);
+
+        let someChild = getIsChildOf(item3Path, item.path, type);
+        let everyChild = childList.every(fn_everyChild);
+        let someParent = parentList.some(fn_someParent);
+        let everyParent = parentList.every(fn_everyParent);
+
+        expect(data["someChild"]).toEqual(someChild);
+        expect(data["everyChild"]).toEqual(everyChild);
+        expect(data["someParent"]).toEqual(someParent);
+        expect(data["everyParent"]).toEqual(everyParent);
+      });
+
+      expect(entireData.some).toEqual(false);
+      expect(entireData.reduce).toEqual(tree.size());
+    });
+  });
+});
+
+describe.each([false, true])("ItemTree", (isSetIndex) => {
+  it("isParentOf", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
+    expect(tree.isParentOf(1, 2)).toEqual(true);
+    expect(tree.isParentOf(2, 3)).toEqual(true);
+    expect(tree.isParentOf(2, 3, "direct")).toEqual(true);
+    expect(tree.isParentOf(2, 3, "direct-indirect")).toEqual(true);
+    expect(tree.isParentOf(2, 3, "indirect")).toEqual(false);
+    expect(tree.isParentOf(2, 3, "self-direct")).toEqual(true);
+  });
+
+  it("isSlibingOf", () => {
+    let treeData = getTestTree();
+    let tree = new ItemTree(treeData);
+    if (isSetIndex) {
+      tree.setIndex();
+    }
+
+    expect(tree.isSlibingOf(1, 2)).toEqual(false);
+    expect(tree.isSlibingOf(3, 4)).toEqual(true);
+  });
+
+  it("fromFlat", () => {
+    let list = [
+      { id: 1, name: "n1", parentId: null },
+      { id: 2, name: "n2", parentId: 1 },
+    ];
+
+    let tree = ItemTree.fromFlat(list, {
+      flatId: "id",
+      flatPid: "parentId",
+      setItem: (o, childs) => ({ id: o.id, name: o.name, children: childs }),
+    });
+
+    let cList = tree.node(1).childList("direct-indirect");
+    expect(tree.size()).toEqual(2);
+    expect(cList).toEqual([{ id: 2, name: "n2", children: [] }]);
   });
 });
 

@@ -1,3 +1,5 @@
+import { handleCallArgs } from "../makeUtils";
+
 interface AOptions {
   // ms
   timeout?: number;
@@ -137,33 +139,15 @@ export function makeSequFnC<T = any>(fn: Function, options?: COptions): (...args
     public run;
     public complete;
     public hasComplete;
+    public callArr;
   }
 
   const timeout = options?.timeout;
   const timeIval = options?.timeIval || timeout;
   const onEnd = options?.onEnd;
 
-  let callback = options?.callback || [-2, -1];
   // 获取参数处理函数
-  let handleInitArgs;
-  if (Array.isArray(callback)) {
-    let pos1 = callback[0];
-    let pos2 = typeof callback[1] === "number" ? callback[1] : null;
-    handleInitArgs = function (args, successCall, errorCall) {
-      let suPos = pos1 < 0 ? args.length + pos1 : pos1;
-      let errPos = pos2 === null ? null : pos2 < 0 ? args.length + pos2 : pos2;
-
-      let arr = [args[suPos]];
-      args[suPos] = successCall;
-      if (errPos !== null) {
-        arr.push(args[errPos]);
-        args[errPos] = errorCall;
-      }
-      return arr;
-    };
-  } else {
-    handleInitArgs = callback;
-  }
+  let handleInitArgs = handleCallArgs(options?.callback);
 
   let linkObj: LinkData = null;
   let lastObj: LinkData = null;
@@ -179,7 +163,7 @@ export function makeSequFnC<T = any>(fn: Function, options?: COptions): (...args
     function theSuccessCall() {
       if (!nextObj.hasComplete) {
         nextObj.hasComplete = true;
-        callArr[0].apply(that, arguments);
+        nextObj.callArr[0].apply(that, arguments);
         nextObj.complete();
       }
     }
@@ -187,21 +171,20 @@ export function makeSequFnC<T = any>(fn: Function, options?: COptions): (...args
     function theErrorCall() {
       if (!nextObj.hasComplete) {
         nextObj.hasComplete = true;
-        (callArr[1] || callArr[0]).apply(that, arguments);
+        (nextObj.callArr[1] || nextObj.callArr[0]).apply(that, arguments);
         nextObj.complete();
       }
     }
 
-    let callArr = handleInitArgs(args, theSuccessCall, theErrorCall);
-
     const nextObj = new LinkData();
+    nextObj.callArr = handleInitArgs(args, theSuccessCall, theErrorCall);
 
     nextObj.run = function () {
       fn.apply(that, args);
     };
 
     nextObj.complete = function () {
-      callArr = [];
+      nextObj.callArr = [];
       if (nextObj.nextObj) {
         linkObj = nextObj.nextObj;
         linkObj.run();
@@ -231,8 +214,8 @@ export function makeSequFnC<T = any>(fn: Function, options?: COptions): (...args
             // 每隔一段时间查是否超时
             if (countTime >= timeout) {
               if (linkObj) {
-                nextObj.hasComplete = true;
-                (callArr[1] || callArr[0]).call(that, new Error("timeout"));
+                linkObj.hasComplete = true;
+                (linkObj.callArr[1] || linkObj.callArr[0]).call(that, new Error("TIMEOUT"));
                 linkObj.complete();
                 countTime = 0;
                 beforeObj = linkObj;

@@ -29,7 +29,7 @@
   "scripts": {
     "style": "eslint *.js .internal/**/*.js",
     "test": "jest --config ./jest.config.js",
-    "testFile": "jest makeSequFn.test.ts --config ./jest.config.js",
+    "testFile": "jest makeSingleFn.test.ts --config ./jest.config.js",
     "validate": "npm run style && npm run test",
     "build": "rollup -c ./rollup.config.js",
     "public": "npm run build && cd ./dist && npm publish"
